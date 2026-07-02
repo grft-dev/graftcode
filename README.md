@@ -149,3 +149,8 @@ wget -qO- https://grft.dev/get | sh
 - **Discord**: [Join Community](https://discord.gg/2tWb3BAE36)
 - **X / Twitter**: [@Graftcode](https://x.com/Graftcode)
 - **LinkedIn**: [Graftcode](https://www.linkedin.com/company/graftcode/)
+
+# Contributing
+We welcome contributions! Please read our Contributing Guide and feel free to open issues or PRs.
+
+Made with ❤️ for developers who want to focus on business logic instead of integration layers.
