@@ -1,9 +1,10 @@
 # graftcode
 
-![Graftcode](https://img.shields.io/badge/Graftcode-Integration--Free-blue?style=for-the-badge&logo=github)
+[![Graftcode](https://img.shields.io/badge/Graftcode-Integration--Free-0A66C2?style=for-the-badge)](https://github.com/grft-dev/graftcode)
+
 [![Roadmap](https://img.shields.io/badge/Roadmap-Featurebase-8A2BE2?style=for-the-badge&logo=roadmap&logoColor=white)](https://graftcode.featurebase.app/dashboard/roadmap)
-[![Quick Start](https://img.shields.io/badge/Quick_Start-Guide-00C853?style=for-the-badge)](https://github.com/grft-dev/graftcode-quick-start-guide)
-[![Stars](https://img.shields.io/github/stars/grft-dev/graftcode?style=social)](https://github.com/grft-dev/graftcode/stargazers)
+[![Quick Start](https://img.shields.io/badge/Quick_Start-Guide-00C853?style=for-the-badge&logo=github&logoColor=white)](https://github.com/grft-dev/graftcode-quick-start-guide)
+[![Stars](https://img.shields.io/github/stars/grft-dev/graftcode?style=for-the-badge&logo=github&logoColor=white&color=0A66C2)](https://github.com/grft-dev/graftcode/stargazers)
 
 **Supported Languages**  
 ![.NET](https://img.shields.io/badge/.NET-512BD4?logo=dotnet&logoColor=white)
