@@ -1,6 +1,8 @@
 # graftcode
 
 ![Graftcode](https://img.shields.io/badge/Graftcode-Integration--Free-blue?style=for-the-badge&logo=github)
+[![Roadmap](https://img.shields.io/badge/Roadmap-Featurebase-8A2BE2?style=for-the-badge&logo=roadmap&logoColor=white)](https://graftcode.featurebase.app/dashboard/roadmap)
+[![Quick Start](https://img.shields.io/badge/Quick_Start-Guide-00C853?style=for-the-badge)](https://github.com/grft-dev/graftcode-quick-start-guide)
 [![Stars](https://img.shields.io/github/stars/grft-dev/graftcode?style=social)](https://github.com/grft-dev/graftcode/stargazers)
 
 **Supported Languages**  
@@ -25,8 +27,7 @@
 ![GCP](https://img.shields.io/badge/GCP-4285F4?logo=googlecloud&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)
 
-[![Quick Start](https://img.shields.io/badge/Quick_Start-Guide-00C853?style=flat-square)](https://github.com/grft-dev/graftcode-quick-start-guide)
-[![Roadmap](https://img.shields.io/badge/Roadmap-Featurebase-8A2BE2?style=for-the-badge&logo=roadmap&logoColor=white)](https://graftcode.featurebase.app/dashboard/roadmap)
+
 
 **Call remote code like local dependencies. Let package managers keep them fresh.**
 
