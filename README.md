@@ -25,6 +25,9 @@
 ![GCP](https://img.shields.io/badge/GCP-4285F4?logo=googlecloud&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)
 
+[![Quick Start](https://img.shields.io/badge/Quick_Start-Guide-00C853?style=flat-square)](https://github.com/grft-dev/graftcode-quick-start-guide)
+[![Roadmap](https://img.shields.io/badge/Roadmap-Featurebase-8A2BE2?style=for-the-badge&logo=roadmap&logoColor=white)](https://graftcode.featurebase.app/dashboard/roadmap)
+
 **Call remote code like local dependencies. Let package managers keep them fresh.**
 
 Graftcode is the **integration-free development layer** that lets you call methods across languages and runtimes as native dependencies: no integration layer code, no SDKs, no client code.
@@ -94,6 +97,18 @@ const price = await EnergyPriceCalculator.GetPrice();
 
 Whenever API evolves, graftcode will take care to inform your package manager that new version of dependency is available.
 
+### Interactive Quick-Start Journey
+
+The best way to get started with Graftcode is our hands-on tutorial series.
+
+**[→ Open Quick Start Guide](https://github.com/grft-dev/graftcode-quick-start-guide)**
+
+It contains step-by-step tutorials such as:
+- Connecting frontend to backend
+- Exposing your first service
+- Switching between monolith and microservices
+- Using with AI agents (MCP)
+
 ## Core Repositories
 
 | Repository                        | Purpose                                      |
@@ -149,6 +164,7 @@ wget -qO- https://grft.dev/get | sh
 - **Discord**: [Join Community](https://discord.gg/2tWb3BAE36)
 - **X / Twitter**: [@Graftcode](https://x.com/Graftcode)
 - **LinkedIn**: [Graftcode](https://www.linkedin.com/company/graftcode/)
+- **Public Roadmap**: [https://graftcode.featurebase.app/dashboard/roadmap](https://graftcode.featurebase.app/dashboard/roadmap)
 
 # Contributing
 We welcome contributions! Please read our Contributing Guide and feel free to open issues or PRs.
