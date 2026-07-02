@@ -1,10 +1,14 @@
 # graftcode
 
-[![Graftcode](https://img.shields.io/badge/Graftcode-Integration--Free-0A66C2?style=for-the-badge)](https://github.com/grft-dev/graftcode)
+[![Graftcode](https://img.shields.io/badge/Graftcode-Integration--Layer--Free-0A66C2?style=for-the-badge)](https://github.com/grft-dev/graftcode)
 
 [![Roadmap](https://img.shields.io/badge/Roadmap-Featurebase-8A2BE2?style=for-the-badge&logo=roadmap&logoColor=white)](https://graftcode.featurebase.app/dashboard/roadmap)
 [![Quick Start](https://img.shields.io/badge/Quick_Start-Guide-00C853?style=for-the-badge&logo=github&logoColor=white)](https://github.com/grft-dev/graftcode-quick-start-guide)
 [![Stars](https://img.shields.io/github/stars/grft-dev/graftcode?style=for-the-badge&logo=github&logoColor=white&color=0A66C2)](https://github.com/grft-dev/graftcode/stargazers)
+
+## **Call remote code like local dependencies.**
+
+Graftcode is the integration-layer-free development framework that lets you call methods across any language and runtime as if they were local, without writing integration code, SDKs, or client layers.
 
 **Supported Languages**  
 ![.NET](https://img.shields.io/badge/.NET-512BD4?logo=dotnet&logoColor=white)
@@ -176,7 +180,38 @@ These files help AI agents (Cursor, Claude, etc.) understand and effectively use
 - **LinkedIn**: [Graftcode](https://www.linkedin.com/company/graftcode/)
 - **Public Roadmap**: [https://graftcode.featurebase.app/dashboard/roadmap](https://graftcode.featurebase.app/dashboard/roadmap)
 
+---
+
+## Used by
+
+Graftcode is already trusted by innovative teams at:
+
+![Total](https://img.shields.io/badge/Total-000000?logo=totalenergies&logoColor=white)
+![TRUMPF](https://img.shields.io/badge/TRUMPF-000000?logo=trumpf&logoColor=white)
+![Siemens](https://img.shields.io/badge/Siemens-009999?logo=siemens&logoColor=white)
+![IQVIA](https://img.shields.io/badge/IQVIA-000000?logo=iqvia&logoColor=white)
+![Breas](https://img.shields.io/badge/Breas-000000?logoColor=white)
+
+*(and many more engineering teams building the future of software)*
+
+---
+
+## ⭐ Star us if you like the project
+
+If Graftcode helps you ship faster and cleaner or just inspire you with its bold vision — please star the repository.  
+It really helps the project grow and motivates the team.
+
+[![Star](https://img.shields.io/github/stars/grft-dev/graftcode?style=for-the-badge&logo=github&logoColor=white&color=0A66C2)](https://github.com/grft-dev/graftcode/stargazers)
+
 # Contributing
 We welcome contributions! Please read our Contributing Guide and feel free to open issues or PRs.
 
 Made with ❤️ for developers who want to focus on business logic instead of integration layers.
+
+## Join the Community
+
+Join other Grafters building the future of software integration.
+
+[![Join Discord](https://img.shields.io/discord/1440810609586339871?style=for-the-badge&logo=discord&logoColor=white&label=Join%20Discord&color=5865F2)](https://discord.gg/2tWb3BAE36)
+
+Chat with the team, get help, share ideas, and stay up to date with the latest developments.
