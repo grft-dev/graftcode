@@ -140,7 +140,7 @@ Graftcode has native support for **Model Context Protocol (MCP)**. Any public st
 
 ### Ready to use AI Agent rules
 
-Adding graftcode rules to your repository allows you to build entire systems using pure prompts — the AI agent reads the rules and can easily build new systems, migrate existing solutions to graftcode, and evolve your system with significantly higher context efficiency and lower token usage.
+Adding graftcode rules to your repository allows you to build entire monolith or distributed systems based on graftcode using pure prompts — the AI agent reads the rules and can easily build new systems in greenfield project, migrate existing solutions to graftcode, and evolve your solution with significantly higher context efficiency and lower token usage.
 
 Use command below in your project root directly to download rules for any IDE Agent.
 
@@ -154,6 +154,14 @@ curl -fsSL https://grft.dev/get | sh
 # Alternative with wget
 wget -qO- https://grft.dev/get | sh
 ```
+
+### AI Agent Rules Raw Files
+
+If you want to access the raw files of our ready-to-use rules and instructions for AI coding agents that are getting installed when you call abovementioned one-liner command, check the folder below:
+
+→ **[/rules](rules/)**
+
+These files help AI agents (Cursor, Claude, etc.) understand and effectively use Graftcode when generating or refactoring code.
 
 ---
 

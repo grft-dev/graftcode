@@ -1,0 +1,3 @@
+# Load the Graftcode conventions into every aider session (read-only).
+# Usage: run aider from this folder, or pass --read CONVENTIONS.md explicitly.
+read: CONVENTIONS.md

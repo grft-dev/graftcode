@@ -1,0 +1,11 @@
+{
+  "name": "graftcode-rules",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Single source of truth for Graftcode AI-assistant rules, generated into per-tool formats (Cursor, Copilot, Continue, Windsurf, Cline, Claude, Aider).",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build-rules.mjs",
+    "check": "node scripts/build-rules.mjs && git diff --exit-code -- Cursor Copilot Continue Windsurf Cline Claude Aider"
+  }
+}
