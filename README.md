@@ -150,13 +150,13 @@ Use command below in your project root directly to download rules for any IDE Ag
 
 ```bash
 # PowerShell
-iwr https://grft.dev/get | iex
+iwr grft.dev/get | iex
 
 # Linux / macOS
-curl -fsSL https://grft.dev/get | sh
+curl -fsSL grft.dev/get | sh
 
 # Alternative with wget
-wget -qO- https://grft.dev/get | sh
+wget -qO- grft.dev/get | sh
 ```
 
 ### AI Agent Rules Raw Files
