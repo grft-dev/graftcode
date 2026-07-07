@@ -4,7 +4,6 @@ set -eu
 REPO="grft-dev/graftcode-gateway"
 EXE_NAME="gg"
 INSTALL_DIR="$PWD"
-OUTPUT_PATH="$INSTALL_DIR/$EXE_NAME"
 
 say() {
   echo "$@"
@@ -27,8 +26,9 @@ EOF
 
   say "Graftcode Gateway installer"
   say ""
-  say "This script downloads and installs Graftcode Gateway (gg)"
-  say "in the current directory."
+  say "This script downloads Graftcode Gateway (gg) for your platform."
+  say "On Debian/Ubuntu it saves gg.deb here — install with: dpkg -i gg.deb"
+  say "On other systems it extracts ./gg into the current directory."
   say ""
 }
 
@@ -96,6 +96,42 @@ detect_arch_suffix() {
       exit 1
       ;;
   esac
+}
+
+build_deb_asset_name() {
+  arch_suffix="$1"
+  echo "gg_linux_${arch_suffix}.deb"
+}
+
+download_deb_package() {
+  arch_suffix="$1"
+  release_json="$2"
+  deb_name="$(build_deb_asset_name "$arch_suffix")"
+  deb_path="$INSTALL_DIR/gg.deb"
+
+  asset_url="$(
+    grep '"browser_download_url"' "$release_json" |
+      sed 's/.*"browser_download_url": "\(.*\)".*/\1/' |
+      grep -Ei "/${deb_name}$" |
+      head -n 1 || true
+  )"
+
+  if [ -z "$asset_url" ]; then
+    return 1
+  fi
+
+  download_file "$asset_url" "$deb_path" "$deb_name"
+  say ""
+  say "Downloaded Debian package:"
+  say "$deb_path"
+  say ""
+  say "Install it with:"
+  if [ "$(id -u 2>/dev/null || echo 1)" -eq 0 ]; then
+    say "  dpkg -i $deb_path"
+  else
+    say "  sudo dpkg -i $deb_path"
+  fi
+  return 0
 }
 
 build_asset_name() {
@@ -166,10 +202,14 @@ install_gg() {
   fi
 
   os_name="$(detect_os)"
-  arch_suffix="$(detect_arch_suffix "$os_name")"
-  asset_name="$(build_asset_name "$os_name" "$arch_suffix")"
+  if [ "$os_name" = "linux" ] && has_cmd dpkg && dpkg --print-architecture >/dev/null 2>&1; then
+    arch_suffix="$(dpkg --print-architecture)"
+  else
+    arch_suffix="$(detect_arch_suffix "$os_name")"
+  fi
+
   exe_name="$EXE_NAME"
-  output_path="$OUTPUT_PATH"
+  output_path="$INSTALL_DIR/$exe_name"
 
   case "$os_name" in
     windows)
@@ -185,6 +225,16 @@ install_gg() {
 
   release_json="$(mktemp)"
   download_file "https://api.github.com/repos/$REPO/releases/latest" "$release_json" "latest release metadata"
+
+  if [ "$os_name" = "linux" ] && has_cmd dpkg; then
+    if download_deb_package "$arch_suffix" "$release_json"; then
+      rm -f "$release_json"
+      return 0
+    fi
+    say "Debian package not found for this architecture, falling back to archive extract..."
+  fi
+
+  asset_name="$(build_asset_name "$os_name" "$arch_suffix")"
 
   asset_url="$(
     grep '"browser_download_url"' "$release_json" |
