@@ -57,24 +57,41 @@ function Download-FileWithSpinner {
   Write-Host "`rDownloaded $Label " -ForegroundColor Green
 }
 
-function Get-GgArchSuffix {
+function Get-NativeWindowsArchSuffix {
+  # On Windows ARM, x64-emulated PowerShell reports PROCESSOR_ARCHITECTURE=AMD64.
+  # PROCESSOR_ARCHITEW6432 reveals the native OS arch (ARM64) in that case.
+  $Candidates = @(
+    $env:PROCESSOR_ARCHITEW6432
+    $env:PROCESSOR_ARCHITECTURE
+  )
+
   try {
-    $OsArch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLowerInvariant()
+    $Candidates += [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
   }
   catch {
     try {
-      $OsArch = [System.Runtime.InteropServices.RuntimeInformation,mscorlib]::OSArchitecture.ToString().ToLowerInvariant()
+      $Candidates += [System.Runtime.InteropServices.RuntimeInformation,mscorlib]::OSArchitecture.ToString()
     }
-    catch {
-      $OsArch = if ([Environment]::Is64BitOperatingSystem) { 'x64' } else { 'x86' }
+    catch {}
+  }
+
+  foreach ($Arch in $Candidates) {
+    if ([string]::IsNullOrWhiteSpace($Arch)) {
+      continue
+    }
+
+    switch ($Arch.Trim().ToLowerInvariant()) {
+      { $_ -in 'arm64', 'aarch64' } { return 'arm64' }
+      { $_ -in 'amd64', 'x64', 'x86_64' } { return 'amd64' }
+      { $_ -in 'x86', 'i386', 'i686' } { return 'x86' }
     }
   }
 
-  switch ($OsArch) {
-    'arm64' { return 'arm64' }
-    'x64' { return 'amd64' }
-    default { throw "Unsupported architecture: $OsArch" }
-  }
+  throw "Unsupported Windows architecture. PROCESSOR_ARCHITECTURE=$($env:PROCESSOR_ARCHITECTURE); PROCESSOR_ARCHITEW6432=$($env:PROCESSOR_ARCHITEW6432)"
+}
+
+function Get-GgArchSuffix {
+  Get-NativeWindowsArchSuffix
 }
 
 function Install-Gg {
