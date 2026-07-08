@@ -57,34 +57,66 @@ function Download-FileWithSpinner {
   Write-Host "`rDownloaded $Label " -ForegroundColor Green
 }
 
+function ConvertTo-WindowsArchSuffix {
+  param([string]$Value)
+
+  if ([string]::IsNullOrWhiteSpace($Value)) {
+    return $null
+  }
+
+  $Normalized = $Value.Trim().ToLowerInvariant()
+  if ($Normalized -match 'arm') {
+    return 'arm64'
+  }
+
+  switch ($Normalized) {
+    { $_ -in 'arm64', 'aarch64' } { return 'arm64' }
+    { $_ -in 'amd64', 'x64', 'x86_64' } { return 'amd64' }
+    { $_ -in 'x86', 'i386', 'i686', 'win32' } { return 'x86' }
+    default { return $null }
+  }
+}
+
 function Get-NativeWindowsArchSuffix {
-  # On Windows ARM, x64-emulated PowerShell reports PROCESSOR_ARCHITECTURE=AMD64.
-  # PROCESSOR_ARCHITEW6432 reveals the native OS arch (ARM64) in that case.
-  $Candidates = @(
-    $env:PROCESSOR_ARCHITEW6432
-    $env:PROCESSOR_ARCHITECTURE
-  )
+  # Collect native OS signals first. Under x64 emulation on Windows ARM,
+  # PROCESSOR_ARCHITECTURE and sometimes OSArchitecture report x64/AMD64
+  # while Win32_OperatingSystem still reports an ARM CPU.
+  $NativeSignals = @()
+
+  if ($env:PROCESSOR_ARCHITEW6432) {
+    $NativeSignals += $env:PROCESSOR_ARCHITEW6432
+  }
 
   try {
-    $Candidates += [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
+    $NativeSignals += (Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction Stop).OSArchitecture
+  }
+  catch {}
+
+  try {
+    $NativeSignals += [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
   }
   catch {
     try {
-      $Candidates += [System.Runtime.InteropServices.RuntimeInformation,mscorlib]::OSArchitecture.ToString()
+      $NativeSignals += [System.Runtime.InteropServices.RuntimeInformation,mscorlib]::OSArchitecture.ToString()
     }
     catch {}
   }
 
-  foreach ($Arch in $Candidates) {
-    if ([string]::IsNullOrWhiteSpace($Arch)) {
-      continue
+  $Resolved = @()
+  foreach ($Signal in $NativeSignals) {
+    $Suffix = ConvertTo-WindowsArchSuffix $Signal
+    if ($Suffix) {
+      $Resolved += $Suffix
     }
+  }
 
-    switch ($Arch.Trim().ToLowerInvariant()) {
-      { $_ -in 'arm64', 'aarch64' } { return 'arm64' }
-      { $_ -in 'amd64', 'x64', 'x86_64' } { return 'amd64' }
-      { $_ -in 'x86', 'i386', 'i686' } { return 'x86' }
-    }
+  if ($Resolved -contains 'arm64') { return 'arm64' }
+  if ($Resolved -contains 'amd64') { return 'amd64' }
+  if ($Resolved -contains 'x86') { return 'x86' }
+
+  $ProcessArch = ConvertTo-WindowsArchSuffix $env:PROCESSOR_ARCHITECTURE
+  if ($ProcessArch) {
+    return $ProcessArch
   }
 
   throw "Unsupported Windows architecture. PROCESSOR_ARCHITECTURE=$($env:PROCESSOR_ARCHITECTURE); PROCESSOR_ARCHITEW6432=$($env:PROCESSOR_ARCHITEW6432)"
