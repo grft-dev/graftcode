@@ -12,10 +12,10 @@ We are at **[WeAreDevelopers World Congress 2026](https://www.wearedevelopers.co
 
 Conference demo repositories:
 
-- [grft-dev/wad-knowledge](https://github.com/grft-dev/wad-knowledge)
-- [grft-dev/wad-speckit](https://github.com/grft-dev/wad-speckit)
-- [grft-dev/wad-rest-demo](https://github.com/grft-dev/wad-rest-demo)
-- [grft-dev/wad-graft-demo](https://github.com/grft-dev/wad-graft-demo)
+- [grft-dev/wad-knowledge](https://github.com/grft-dev/wad-knowledge) — simple rules and skills for AI
+- [grft-dev/wad-speckit](https://github.com/grft-dev/wad-speckit) — advanced rules and specification sample
+- [grft-dev/wad-rest-demo](https://github.com/grft-dev/wad-rest-demo) — sample distributed system created with REST
+- [grft-dev/wad-graft-demo](https://github.com/grft-dev/wad-graft-demo) — sample distributed system created with Graftcode
 
 ---
 
