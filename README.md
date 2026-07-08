@@ -6,6 +6,19 @@
 [![Quick Start](https://img.shields.io/badge/Quick_Start-Guide-00C853?style=for-the-badge&logo=github&logoColor=white)](https://github.com/grft-dev/graftcode-quick-start-guide)
 [![Stars](https://img.shields.io/github/stars/grft-dev/graftcode?style=for-the-badge&logo=github&logoColor=white&color=0A66C2)](https://github.com/grft-dev/graftcode/stargazers)
 
+## WeAreDevelopers 2026 — Berlin
+
+We are at **[WeAreDevelopers World Congress 2026](https://www.wearedevelopers.com/)** in Berlin. If our session or product caught your interest, **star this repo** — it helps us a lot.
+
+Conference demo repositories:
+
+- [grft-dev/wad-knowledge](https://github.com/grft-dev/wad-knowledge)
+- [grft-dev/wad-speckit](https://github.com/grft-dev/wad-speckit)
+- [grft-dev/wad-rest-demo](https://github.com/grft-dev/wad-rest-demo)
+- [grft-dev/wad-graft-demo](https://github.com/grft-dev/wad-graft-demo)
+
+---
+
 ## **Call remote code like local dependencies.**
 
 Graftcode is the integration-layer-free development framework that lets you call methods across any language and runtime as if they were local, without writing integration code, SDKs, or client layers.
