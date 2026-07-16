@@ -57,6 +57,8 @@ EOF
   say "     - so AI can generate code that integrates everything through Graftcode"
   say "  2. Download Graftcode Gateway"
   say "     - gateway for your processor"
+  say "  3. Download Graftcode Plugins"
+  say "     - RabbitMQ and Azure Service Bus plugins for the gateway"
   say ""
 }
 
@@ -76,22 +78,6 @@ read_from_tty() {
   fi
 
   echo "$choice"
-}
-
-read_choice_12() {
-  while :; do
-    choice="$(read_from_tty "Enter choice [1/2]: ")"
-
-    case "$choice" in
-      1|2)
-        echo "$choice"
-        return 0
-        ;;
-      *)
-        say "Invalid choice. Available options: 1, 2"
-        ;;
-    esac
-  done
 }
 
 read_choice_set() {
@@ -371,18 +357,180 @@ install_gateway() {
   say "$OUTPUT_PATH"
 }
 
+detect_plugin_os() {
+  os_name="$(uname -s | tr 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' 'abcdefghijklmnopqrstuvwxyz')"
+
+  case "$os_name" in
+    linux)
+      echo "linux"
+      ;;
+    darwin)
+      echo "macos"
+      ;;
+    mingw*|msys*|cygwin*|windows*|win*)
+      echo "windows"
+      ;;
+    *)
+      say "Unsupported OS: $os_name"
+      exit 1
+      ;;
+  esac
+}
+
+detect_plugin_arch() {
+  arch_name="$(uname -m | tr 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' 'abcdefghijklmnopqrstuvwxyz')"
+
+  case "$arch_name" in
+    arm64|aarch64)
+      echo "arm64"
+      ;;
+    x86_64|amd64)
+      echo "x86_64"
+      ;;
+    *)
+      say "Unsupported architecture: $arch_name"
+      exit 1
+      ;;
+  esac
+}
+
+install_plugin_files() {
+  extract_dir="$1"
+  install_dir="$2"
+  plugin_label="$3"
+  shift 3
+
+  mkdir -p "$install_dir"
+  installed=""
+
+  if [ -d "$extract_dir/Release" ]; then
+    for file in "$extract_dir"/Release/*.dll; do
+      [ -e "$file" ] || continue
+      cp "$file" "$install_dir/"
+      installed="$installed
+ - $(basename "$file")"
+    done
+  fi
+
+  for pattern in "$@"; do
+    found="$(find "$extract_dir" -maxdepth 2 -type f -name "$pattern" -print | head -n 1 || true)"
+    if [ -n "$found" ]; then
+      cp "$found" "$install_dir/"
+      installed="$installed
+ - $(basename "$found")"
+    fi
+  done
+
+  if [ -z "$installed" ]; then
+    say "Could not find $plugin_label plugin binaries inside archive."
+    say "Extracted files:"
+    find "$extract_dir" -maxdepth 4 -type f | sed 's/^/ - /' > /dev/tty 2>/dev/null || true
+    exit 1
+  fi
+
+  say "$installed"
+}
+
+install_plugin() {
+  plugin_name="$1"
+  plugin_label="$2"
+  shift 2
+
+  if ! has_cmd tar || ! has_cmd find || ! has_cmd basename || ! has_cmd mktemp || ! has_cmd grep || ! has_cmd sed; then
+    say "Error: this installer requires tar, find, basename, mktemp, grep and sed."
+    exit 1
+  fi
+
+  plugins_repo="grft-dev/graftcode-plugins"
+  install_dir="$PWD"
+  os_name="$(detect_plugin_os)"
+  arch_name="$(detect_plugin_arch)"
+  asset_name="${plugin_name}-${os_name}-${arch_name}.tar.gz"
+
+  say ""
+  say "Detected OS: $os_name"
+  say "Detected architecture: $arch_name"
+  say "Fetching latest release from $plugins_repo..."
+
+  release_json="$(mktemp)"
+  download_file "https://api.github.com/repos/$plugins_repo/releases/latest" "$release_json" "latest release metadata"
+
+  asset_url="$(
+    grep '"browser_download_url"' "$release_json" |
+      sed 's/.*"browser_download_url": "\(.*\)".*/\1/' |
+      grep -Ei "/${asset_name}$" |
+      head -n 1 || true
+  )"
+
+  if [ -z "$asset_url" ]; then
+    say "Could not find $plugin_label build: $asset_name"
+    say ""
+    say "Available ${plugin_name} assets:"
+    grep '"browser_download_url"' "$release_json" |
+      sed 's/.*"browser_download_url": "\(.*\)".*/\1/' |
+      grep -Ei "/${plugin_name}-" |
+      sed 's/^/ - /' > /dev/tty 2>/dev/null || true
+    rm -f "$release_json"
+    exit 1
+  fi
+
+  tmp_dir="$(mktemp -d)"
+  archive_path="$tmp_dir/$asset_name"
+  extract_dir="$tmp_dir/extract"
+
+  download_file "$asset_url" "$archive_path" "$asset_name"
+  mkdir -p "$extract_dir"
+  tar -xzf "$archive_path" -C "$extract_dir"
+
+  say ""
+  say "Installing plugin files to:"
+  say "$install_dir"
+  say ""
+  install_plugin_files "$extract_dir" "$install_dir" "$plugin_label" "$@"
+
+  rm -rf "$tmp_dir"
+  rm -f "$release_json"
+
+  say ""
+  say "Installed Graftcode $plugin_label plugin in:"
+  say "$install_dir"
+}
+
+install_plugins() {
+  say ""
+  say "Choose plugin:"
+  say "  1. RabbitMQ"
+  say "  2. Azure Service Bus"
+  say ""
+
+  plugin_choice="$(read_choice_set "1 2" "1/2")"
+
+  case "$plugin_choice" in
+    1)
+      install_plugin "rabbitmq" "RabbitMQ" \
+        libRabbitmqPlugin.so libRabbitmqPlugin.dylib RabbitmqPlugin.dll
+      ;;
+    2)
+      install_plugin "servicebus" "Service Bus" \
+        libServiceBusPlugin.so libServiceBusPlugin.dylib ServiceBusPlugin.dll
+      ;;
+  esac
+}
+
 show_intro
 
 say "What do you want to install?"
 say "  1. Graftcode Rules file"
 say "  2. Graftcode Gateway"
+say "  3. Graftcode Plugins"
 say ""
 
-choice="$(read_choice_12)"
+choice="$(read_choice_set "1 2 3" "1/2/3")"
 
 case "$choice" in
   1) install_rules ;;
   2) install_gateway ;;
+  3) install_plugins ;;
 esac
 
 say ""

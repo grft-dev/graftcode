@@ -22,6 +22,8 @@ function Show-GraftcodeIntro {
     Write-Host "     - so AI can generate code that integrates everything through Graftcode"
     Write-Host "  2. Download Graftcode Gateway"
     Write-Host "     - gateway for your processor"
+    Write-Host "  3. Download Graftcode Plugins"
+    Write-Host "     - RabbitMQ and Azure Service Bus plugins for the gateway"
     Write-Host ""
 }
 
@@ -309,18 +311,166 @@ function Install-GraftcodeGateway {
     Write-Host $OutputPath
 }
 
+function Get-PluginArchSuffix {
+    $ArchSuffix = Get-NativeWindowsArchSuffix
+
+    switch ($ArchSuffix) {
+        'arm64' { return 'arm64' }
+        'amd64' { return 'x86_64' }
+        default { throw "Unsupported plugin architecture: $ArchSuffix" }
+    }
+}
+
+function Install-GraftcodePluginFiles {
+    param(
+        [string]$ExtractDir,
+        [string]$TargetDir,
+        [string]$PluginLabel,
+        [string[]]$Patterns
+    )
+
+    if (-not (Test-Path $TargetDir)) {
+        New-Item -ItemType Directory -Path $TargetDir -Force | Out-Null
+    }
+
+    $Installed = @()
+    $ReleaseDir = Join-Path $ExtractDir 'Release'
+
+    if (Test-Path $ReleaseDir) {
+        Get-ChildItem -Path $ReleaseDir -File -Filter '*.dll' | ForEach-Object {
+            Copy-Item -Path $_.FullName -Destination (Join-Path $TargetDir $_.Name) -Force
+            $Installed += $_.Name
+        }
+    }
+
+    foreach ($Pattern in $Patterns) {
+        $Match = Get-ChildItem -Path $ExtractDir -Recurse -File -Filter $Pattern -ErrorAction SilentlyContinue |
+            Select-Object -First 1
+
+        if ($Match) {
+            $Destination = Join-Path $TargetDir $Match.Name
+            if (-not ($Installed -contains $Match.Name)) {
+                Copy-Item -Path $Match.FullName -Destination $Destination -Force
+                $Installed += $Match.Name
+            }
+        }
+    }
+
+    if ($Installed.Count -eq 0) {
+        $Available = (Get-ChildItem -Path $ExtractDir -Recurse -File | ForEach-Object { $_.FullName }) -join "`n - "
+        throw "Could not find $PluginLabel plugin binaries inside archive. Extracted files:`n - $Available"
+    }
+
+    return $Installed
+}
+
+function Install-GraftcodePlugin {
+    param(
+        [string]$PluginName,
+        [string]$PluginLabel,
+        [string[]]$Patterns
+    )
+
+    $Repo = 'grft-dev/graftcode-plugins'
+    $InstallDir = $PWD.Path
+    $OsName = 'windows'
+    $ArchName = Get-PluginArchSuffix
+    $AssetName = "$PluginName-$OsName-$ArchName.tar.gz"
+
+    Write-Host ""
+    Write-Host "Detected OS: $OsName"
+    Write-Host "Detected architecture: $ArchName"
+    Write-Host "Fetching latest release from $Repo..."
+
+    $Release = Invoke-RestMethod "https://api.github.com/repos/$Repo/releases/latest"
+
+    $Asset = $Release.assets |
+        Where-Object { $_.name -ieq $AssetName } |
+        Select-Object -First 1
+
+    if (-not $Asset) {
+        $Available = ($Release.assets |
+            Where-Object { $_.name -match "(?i)^$PluginName-" } |
+            ForEach-Object { $_.name }) -join "`n - "
+        throw "Could not find $PluginLabel build: $AssetName. Available ${PluginName} assets:`n - $Available"
+    }
+
+    $TempDir = Join-Path $env:TEMP ("graftcode-$PluginName-" + [Guid]::NewGuid().ToString())
+    New-Item -ItemType Directory -Path $TempDir -Force | Out-Null
+
+    try {
+        $ArchivePath = Join-Path $TempDir $Asset.name
+        Download-FileWithSpinner -Url $Asset.browser_download_url -OutputPath $ArchivePath -Label $Asset.name
+
+        $ExtractDir = Join-Path $TempDir 'extract'
+        New-Item -ItemType Directory -Path $ExtractDir -Force | Out-Null
+        tar -xzf $ArchivePath -C $ExtractDir
+
+        Write-Host ""
+        Write-Host "Installing plugin files to:" -ForegroundColor Yellow
+        Write-Host $InstallDir
+
+        $Installed = Install-GraftcodePluginFiles `
+            -ExtractDir $ExtractDir `
+            -TargetDir $InstallDir `
+            -PluginLabel $PluginLabel `
+            -Patterns $Patterns
+
+        Write-Host ""
+        foreach ($FileName in $Installed) {
+            Write-Host " - $FileName" -ForegroundColor Green
+        }
+
+        Write-Host ""
+        Write-Host "Installed Graftcode $PluginLabel plugin in:" -ForegroundColor Green
+        Write-Host $InstallDir
+    }
+    finally {
+        if (Test-Path $TempDir) {
+            Remove-Item $TempDir -Recurse -Force
+        }
+    }
+}
+
+function Install-GraftcodePlugins {
+    Write-Host ""
+    Write-Host "Choose plugin:" -ForegroundColor Yellow
+    Write-Host "  1. RabbitMQ"
+    Write-Host "  2. Azure Service Bus"
+    Write-Host ""
+
+    $PluginChoice = Read-MenuChoice -Prompt "Enter choice [1/2]" -AllowedChoices @('1', '2')
+
+    switch ($PluginChoice) {
+        '1' {
+            Install-GraftcodePlugin `
+                -PluginName 'rabbitmq' `
+                -PluginLabel 'RabbitMQ' `
+                -Patterns @('libRabbitmqPlugin.so', 'libRabbitmqPlugin.dylib', 'RabbitmqPlugin.dll')
+        }
+        '2' {
+            Install-GraftcodePlugin `
+                -PluginName 'servicebus' `
+                -PluginLabel 'Service Bus' `
+                -Patterns @('libServiceBusPlugin.so', 'libServiceBusPlugin.dylib', 'ServiceBusPlugin.dll')
+        }
+    }
+}
+
 Show-GraftcodeIntro
 
 Write-Host "What do you want to install?" -ForegroundColor Yellow
 Write-Host "  1. Graftcode Rules file"
 Write-Host "  2. Graftcode Gateway"
+Write-Host "  3. Graftcode Plugins"
 Write-Host ""
 
-$Choice = Read-MenuChoice -Prompt "Enter choice [1/2]" -AllowedChoices @('1', '2')
+$Choice = Read-MenuChoice -Prompt "Enter choice [1/2/3]" -AllowedChoices @('1', '2', '3')
 
 switch ($Choice) {
     '1' { Install-GraftcodeRules }
     '2' { Install-GraftcodeGateway }
+    '3' { Install-GraftcodePlugins }
 }
 
 Write-Host ""
