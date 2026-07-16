@@ -52,9 +52,13 @@ if ($pathEntries -notcontains $BinDir) {
     $newPath = (@($BinDir) + $pathEntries) -join ';'
     [Environment]::SetEnvironmentVariable('Path', $newPath, 'User')
     Write-Host "Added $BinDir to your User PATH." -ForegroundColor DarkGray
-    if ($env:Path -notlike "*$BinDir*") {
-        $env:Path = "$BinDir;$env:Path"
-    }
+}
+
+# Always refresh the current PowerShell session too. This makes `grft`
+# available immediately when install.ps1 is executed in-process
+# (for example `irm ... | iex` or `.\\cli\\install.ps1` in PowerShell).
+if ($env:Path -notlike "*$BinDir*") {
+    $env:Path = "$BinDir;$env:Path"
 }
 
 Write-Host ""
@@ -62,8 +66,10 @@ Write-Host "Graftcode CLI $Version installed." -ForegroundColor Green
 Write-Host "  Home: $GrftHome"
 Write-Host "  Bin:  $BinDir\grft.cmd"
 Write-Host ""
-Write-Host "Open a new terminal, then run:" -ForegroundColor Cyan
+Write-Host "In this PowerShell window you can run now:" -ForegroundColor Cyan
 Write-Host "  grft"
 Write-Host "  grft get gg"
 Write-Host "  grft get rules cursor"
 Write-Host "  grft get plugin rabbitmq"
+Write-Host ""
+Write-Host "Note: if you ran this from cmd.exe, that parent cmd window will still need a restart to pick up the new PATH." -ForegroundColor DarkGray

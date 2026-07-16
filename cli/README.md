@@ -12,6 +12,8 @@ Installs into `~/.grft` (user-level, no admin) and adds `grft` to your PATH.
 irm https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli/install.ps1 | iex
 ```
 
+When installed from PowerShell, `grft` should work immediately in that same PowerShell session. If you launch the installer from `cmd.exe`, the parent `cmd` window still needs to be reopened because child PowerShell processes cannot modify the parent `cmd` environment.
+
 Or from a local checkout:
 
 ```powershell
