@@ -1,0 +1,12 @@
+#!/bin/sh
+set -eu
+
+GRFT_HOME="${GRFT_HOME:-$HOME/.grft}"
+GET_SH="$GRFT_HOME/get.sh"
+
+if [ ! -f "$GET_SH" ]; then
+  echo "grft is not installed. Run: curl -fsSL https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli/install.sh | sh" >&2
+  exit 1
+fi
+
+exec sh "$GET_SH" "$@"

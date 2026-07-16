@@ -2,57 +2,92 @@
 
 Official installer and helper scripts for Graftcode.
 
-## What does it do?
+## Permanent install (`grft`)
 
-This installer allows you to quickly:
+Installs into `~/.grft` (user-level, no admin) and adds `grft` to your PATH.
 
-- Download AI Agent Rules for Cursor, Claude, GitHub Copilot, Cline, Windsurf, Continue, Aider and more
-- Download and install the latest Graftcode Gateway
-- (In the future) Install plugins and additional tools
+### Windows (PowerShell)
 
-## Quick Usage
+```powershell
+irm https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli/install.ps1 | iex
+```
 
-### On Linux / macOS
+Or from a local checkout:
+
+```powershell
+.\cli\install.ps1
+```
+
+### Linux / macOS
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli/install.sh | sh
+```
+
+Or from a local checkout:
+
+```bash
+sh ./cli/install.sh
+```
+
+### Usage
+
+```bash
+grft                          # interactive menu
+grft get                      # same as interactive
+grft get gg                   # download Graftcode Gateway into cwd
+grft get rules cursor         # install Cursor rules into cwd
+grft get rules claude
+grft get rules copilot
+grft get plugin rabbitmq
+grft get plugin servicebus
+grft version
+```
+
+When `grft` runs from `~/.grft`, it checks `cli/VERSION` on GitHub and self-updates before running your command.
+
+## One-shot install (no PATH)
+
+Still works without installing `grft`:
+
+### Linux / macOS
 
 ```bash
 curl -fsSL https://grft.dev/get | sh
 ```
 
-### On Windows (PowerShell)
+### Windows (PowerShell)
 
-```bash
+```powershell
 iwr https://grft.dev/get | iex
 ```
 
-## Available Scripts
+## Layout after install
 
-Script              | Purpose
---------------------|---------
-get.sh              | Main installer for Unix-like systems (Linux, macOS)
-get.ps1             | Main installer for Windows (PowerShell)
+```
+~/.grft/
+  VERSION
+  get.ps1 | get.sh
+  bin/
+    grft | grft.cmd
+```
 
-Both scripts offer an interactive menu allowing you to choose what to install:
-- Rules for AI Agents (MCP rules for best AI coding experience)
-- Graftcode Gateway (the runtime host)
+## Available scripts in this repo
 
-## How to use
+| Script        | Purpose                                      |
+|---------------|----------------------------------------------|
+| install.ps1   | Install `grft` on Windows                    |
+| install.sh    | Install `grft` on Linux/macOS                |
+| get.ps1       | CLI + interactive installer (Windows)        |
+| get.sh        | CLI + interactive installer (Unix)           |
+| bin/grft      | Unix wrapper → `~/.grft/get.sh`               |
+| bin/grft.cmd  | Windows wrapper → `%USERPROFILE%\.grft\get.ps1` |
+| VERSION       | Semver used for self-update                  |
 
-1. Run the installer in your project root directory
-2. Choose option 1 (Rules) or 2 (Gateway)
-3. Follow the on-screen instructions
+## IDE names for `grft get rules`
 
-The rules will be placed in the correct locations for your IDE/agent (.cursor/rules, .claude/rules, .github/, etc.).
+`cursor`, `claude` (or `claude-code`), `copilot` (or `github-copilot`), `cline`, `windsurf`, `continue`, `aider`
 
----
+## Plugin names for `grft get plugin`
 
-## Future Plans
-
-This CLI will be extended with:
-- Plugin installation
-- Project initialization for AI (graftcode ai init)
-- Update commands
-- Diagnostics
-
----
-
-Made with ❤️ for developers and AI agents
+`rabbitmq`, `servicebus` (aliases: `service-bus`, `azure-servicebus`, `asb`)

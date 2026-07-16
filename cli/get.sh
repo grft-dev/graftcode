@@ -1,5 +1,10 @@
 #!/bin/sh
+# GRFT_VERSION=0.1.0
 set -eu
+
+GRFT_VERSION="0.1.0"
+GRFT_RAW_BASE="https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli"
+GRFT_HOME="${GRFT_HOME:-$HOME/.grft}"
 
 REPO="grft-dev/graftcode-gateway"
 EXE_NAME="gg"
@@ -138,7 +143,78 @@ download_rule_set() {
   done
 }
 
+install_rules_for_ide() {
+  ide="$(echo "$1" | tr 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' 'abcdefghijklmnopqrstuvwxyz')"
+
+  case "$ide" in
+    cursor|1)
+      target_dir="$PWD/.cursor/rules"
+      download_rule_set "$RULES_RAW_BASE/Cursor/.cursor/rules" "$target_dir" "mdc" "yes"
+      say ""
+      say "Installed Graftcode Cursor rules in:"
+      say "$target_dir"
+      ;;
+    claude|claude-code|2)
+      download_file "$RULES_RAW_BASE/Claude/CLAUDE.md" "$PWD/CLAUDE.md" "CLAUDE.md"
+      target_dir="$PWD/.claude/rules"
+      download_rule_set "$RULES_RAW_BASE/Claude/.claude/rules" "$target_dir" "md" "no"
+      say ""
+      say "Installed Graftcode Claude Code rules in:"
+      say "$PWD/CLAUDE.md"
+      say "$target_dir"
+      ;;
+    copilot|github-copilot|github|3)
+      mkdir -p "$PWD/.github"
+      download_file "$RULES_RAW_BASE/Copilot/.github/copilot-instructions.md" "$PWD/.github/copilot-instructions.md" "copilot-instructions.md"
+      target_dir="$PWD/.github/instructions"
+      download_rule_set "$RULES_RAW_BASE/Copilot/.github/instructions" "$target_dir" "instructions.md" "no"
+      say ""
+      say "Installed Graftcode GitHub Copilot rules in:"
+      say "$PWD/.github/copilot-instructions.md"
+      say "$target_dir"
+      ;;
+    cline|4)
+      target_dir="$PWD/.clinerules"
+      download_rule_set "$RULES_RAW_BASE/Cline/.clinerules" "$target_dir" "md" "yes"
+      say ""
+      say "Installed Graftcode Cline rules in:"
+      say "$target_dir"
+      ;;
+    windsurf|5)
+      target_dir="$PWD/.windsurf/rules"
+      download_rule_set "$RULES_RAW_BASE/Windsurf/.windsurf/rules" "$target_dir" "md" "yes"
+      say ""
+      say "Installed Graftcode Windsurf rules in:"
+      say "$target_dir"
+      ;;
+    continue|6)
+      target_dir="$PWD/.continue/rules"
+      download_rule_set "$RULES_RAW_BASE/Continue/.continue/rules" "$target_dir" "md" "yes"
+      say ""
+      say "Installed Graftcode Continue rules in:"
+      say "$target_dir"
+      ;;
+    aider|7)
+      download_file "$RULES_RAW_BASE/Aider/CONVENTIONS.md" "$PWD/CONVENTIONS.md" "CONVENTIONS.md"
+      download_file "$RULES_RAW_BASE/Aider/.aider.conf.yml" "$PWD/.aider.conf.yml" ".aider.conf.yml"
+      say ""
+      say "Installed Graftcode Aider rules in:"
+      say "$PWD/CONVENTIONS.md"
+      say "$PWD/.aider.conf.yml"
+      ;;
+    *)
+      say "Unknown IDE '$1'. Use: cursor, claude, copilot, cline, windsurf, continue, aider"
+      exit 1
+      ;;
+  esac
+}
+
 install_rules() {
+  if [ "$#" -ge 1 ] && [ -n "$1" ]; then
+    install_rules_for_ide "$1"
+    return 0
+  fi
+
   say ""
   say "Choose IDE:"
   say "  1. Cursor"
@@ -151,64 +227,7 @@ install_rules() {
   say ""
 
   ide_choice="$(read_choice_set "1 2 3 4 5 6 7" "1-7")"
-
-  case "$ide_choice" in
-    1)
-      target_dir="$PWD/.cursor/rules"
-      download_rule_set "$RULES_RAW_BASE/Cursor/.cursor/rules" "$target_dir" "mdc" "yes"
-      say ""
-      say "Installed Graftcode Cursor rules in:"
-      say "$target_dir"
-      ;;
-    2)
-      download_file "$RULES_RAW_BASE/Claude/CLAUDE.md" "$PWD/CLAUDE.md" "CLAUDE.md"
-      target_dir="$PWD/.claude/rules"
-      download_rule_set "$RULES_RAW_BASE/Claude/.claude/rules" "$target_dir" "md" "no"
-      say ""
-      say "Installed Graftcode Claude Code rules in:"
-      say "$PWD/CLAUDE.md"
-      say "$target_dir"
-      ;;
-    3)
-      mkdir -p "$PWD/.github"
-      download_file "$RULES_RAW_BASE/Copilot/.github/copilot-instructions.md" "$PWD/.github/copilot-instructions.md" "copilot-instructions.md"
-      target_dir="$PWD/.github/instructions"
-      download_rule_set "$RULES_RAW_BASE/Copilot/.github/instructions" "$target_dir" "instructions.md" "no"
-      say ""
-      say "Installed Graftcode GitHub Copilot rules in:"
-      say "$PWD/.github/copilot-instructions.md"
-      say "$target_dir"
-      ;;
-    4)
-      target_dir="$PWD/.clinerules"
-      download_rule_set "$RULES_RAW_BASE/Cline/.clinerules" "$target_dir" "md" "yes"
-      say ""
-      say "Installed Graftcode Cline rules in:"
-      say "$target_dir"
-      ;;
-    5)
-      target_dir="$PWD/.windsurf/rules"
-      download_rule_set "$RULES_RAW_BASE/Windsurf/.windsurf/rules" "$target_dir" "md" "yes"
-      say ""
-      say "Installed Graftcode Windsurf rules in:"
-      say "$target_dir"
-      ;;
-    6)
-      target_dir="$PWD/.continue/rules"
-      download_rule_set "$RULES_RAW_BASE/Continue/.continue/rules" "$target_dir" "md" "yes"
-      say ""
-      say "Installed Graftcode Continue rules in:"
-      say "$target_dir"
-      ;;
-    7)
-      download_file "$RULES_RAW_BASE/Aider/CONVENTIONS.md" "$PWD/CONVENTIONS.md" "CONVENTIONS.md"
-      download_file "$RULES_RAW_BASE/Aider/.aider.conf.yml" "$PWD/.aider.conf.yml" ".aider.conf.yml"
-      say ""
-      say "Installed Graftcode Aider rules in:"
-      say "$PWD/CONVENTIONS.md"
-      say "$PWD/.aider.conf.yml"
-      ;;
-  esac
+  install_rules_for_ide "$ide_choice"
 }
 
 detect_os_pattern() {
@@ -497,41 +516,195 @@ install_plugin() {
 }
 
 install_plugins() {
-  say ""
-  say "Choose plugin:"
-  say "  1. RabbitMQ"
-  say "  2. Azure Service Bus"
-  say ""
+  plugin=""
+  if [ "$#" -ge 1 ]; then
+    plugin="$(echo "$1" | tr 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' 'abcdefghijklmnopqrstuvwxyz')"
+  fi
 
-  plugin_choice="$(read_choice_set "1 2" "1/2")"
+  if [ -z "$plugin" ]; then
+    say ""
+    say "Choose plugin:"
+    say "  1. RabbitMQ"
+    say "  2. Azure Service Bus"
+    say ""
+    plugin="$(read_choice_set "1 2" "1/2")"
+  fi
 
-  case "$plugin_choice" in
-    1)
+  case "$plugin" in
+    rabbitmq|rabbit|1)
       install_plugin "rabbitmq" "RabbitMQ" \
         libRabbitmqPlugin.so libRabbitmqPlugin.dylib RabbitmqPlugin.dll
       ;;
-    2)
+    servicebus|service-bus|azure-servicebus|asb|2)
       install_plugin "servicebus" "Service Bus" \
         libServiceBusPlugin.so libServiceBusPlugin.dylib ServiceBusPlugin.dll
+      ;;
+    *)
+      say "Unknown plugin '$1'. Use: rabbitmq, servicebus"
+      exit 1
       ;;
   esac
 }
 
-show_intro
+script_dir() {
+  script="$0"
+  case "$script" in
+    /*) dirname "$script" ;;
+    *) dirname "$(pwd)/$script" ;;
+  esac
+}
 
-say "What do you want to install?"
-say "  1. Graftcode Rules file"
-say "  2. Graftcode Gateway"
-say "  3. Graftcode Plugins"
-say ""
+is_installed_copy() {
+  dir="$(CDPATH= cd -- "$(script_dir)" && pwd)"
+  home="$(CDPATH= cd -- "$GRFT_HOME" 2>/dev/null && pwd || echo "$GRFT_HOME")"
+  [ "$dir" = "$home" ]
+}
 
-choice="$(read_choice_set "1 2 3" "1/2/3")"
+version_lt() {
+  left="$1"
+  right="$2"
 
-case "$choice" in
-  1) install_rules ;;
-  2) install_gateway ;;
-  3) install_plugins ;;
-esac
+  if has_cmd sort; then
+    lowest="$(printf '%s\n%s\n' "$left" "$right" | sort -V | head -n 1)"
+    [ "$lowest" = "$left" ] && [ "$left" != "$right" ]
+    return $?
+  fi
 
-say ""
-say "Done."
+  [ "$left" != "$right" ]
+}
+
+maybe_self_update() {
+  if [ "${GRFT_SKIP_UPDATE:-}" = "1" ]; then
+    return 0
+  fi
+
+  if ! is_installed_copy; then
+    return 0
+  fi
+
+  remote=""
+  if has_cmd curl; then
+    remote="$(curl -fsSL "$GRFT_RAW_BASE/VERSION" 2>/dev/null | tr -d '[:space:]' || true)"
+  elif has_cmd wget; then
+    remote="$(wget -qO- "$GRFT_RAW_BASE/VERSION" 2>/dev/null | tr -d '[:space:]' || true)"
+  else
+    return 0
+  fi
+
+  if [ -z "$remote" ]; then
+    return 0
+  fi
+
+  if ! version_lt "$GRFT_VERSION" "$remote"; then
+    return 0
+  fi
+
+  say "Updating grft CLI $GRFT_VERSION -> $remote ..."
+
+  mkdir -p "$GRFT_HOME/bin"
+  download_file "$GRFT_RAW_BASE/get.sh" "$GRFT_HOME/get.sh" "get.sh"
+  download_file "$GRFT_RAW_BASE/VERSION" "$GRFT_HOME/VERSION" "VERSION"
+  download_file "$GRFT_RAW_BASE/bin/grft" "$GRFT_HOME/bin/grft" "grft" || true
+  chmod +x "$GRFT_HOME/get.sh" "$GRFT_HOME/bin/grft" 2>/dev/null || true
+
+  GRFT_SKIP_UPDATE=1 exec sh "$GRFT_HOME/get.sh" "$@"
+}
+
+show_help() {
+  say "grft — Graftcode CLI ($GRFT_VERSION)"
+  say ""
+  say "Usage:"
+  say "  grft                          Interactive installer"
+  say "  grft get                      Interactive installer"
+  say "  grft get gg                   Download Graftcode Gateway"
+  say "  grft get rules <ide>          Install AI rules (cursor, claude, copilot, ...)"
+  say "  grft get plugin <name>        Install plugin (rabbitmq, servicebus)"
+  say "  grft version                  Show CLI version"
+  say ""
+}
+
+run_interactive() {
+  show_intro
+
+  say "What do you want to install?"
+  say "  1. Graftcode Rules file"
+  say "  2. Graftcode Gateway"
+  say "  3. Graftcode Plugins"
+  say ""
+
+  choice="$(read_choice_set "1 2 3" "1/2/3")"
+
+  case "$choice" in
+    1) install_rules ;;
+    2) install_gateway ;;
+    3) install_plugins ;;
+  esac
+
+  say ""
+  say "Done."
+}
+
+run_command() {
+  if [ "$#" -eq 0 ]; then
+    run_interactive
+    return 0
+  fi
+
+  cmd="$(echo "$1" | tr 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' 'abcdefghijklmnopqrstuvwxyz')"
+
+  case "$cmd" in
+    version|--version|-v)
+      say "grft $GRFT_VERSION"
+      return 0
+      ;;
+    help|--help|-h)
+      show_help
+      return 0
+      ;;
+    get)
+      ;;
+    *)
+      show_help
+      say "Unknown command '$1'. Commands start with: grft get ..."
+      exit 1
+      ;;
+  esac
+
+  if [ "$#" -eq 1 ]; then
+    run_interactive
+    return 0
+  fi
+
+  target="$(echo "$2" | tr 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' 'abcdefghijklmnopqrstuvwxyz')"
+
+  case "$target" in
+    gg|gateway)
+      install_gateway
+      ;;
+    rules|rule)
+      if [ "$#" -ge 3 ]; then
+        install_rules "$3"
+      else
+        install_rules
+      fi
+      ;;
+    plugin|plugins)
+      if [ "$#" -ge 3 ]; then
+        install_plugins "$3"
+      else
+        install_plugins
+      fi
+      ;;
+    *)
+      show_help
+      say "Unknown get target '$2'. Use: gg, rules, plugin"
+      exit 1
+      ;;
+  esac
+
+  say ""
+  say "Done."
+}
+
+maybe_self_update "$@"
+run_command "$@"

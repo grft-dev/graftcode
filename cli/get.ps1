@@ -1,5 +1,12 @@
+# GRFT_VERSION=0.1.0
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
+
+$GrftVersion = '0.1.0'
+$GrftRawBase = 'https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli'
+$GrftHome = if ($env:GRFT_HOME) { $env:GRFT_HOME } else { Join-Path $env:USERPROFILE '.grft' }
+$RulesRawBase = "https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/rules"
+$RuleLangs = @('dotnet', 'java', 'kotlin', 'php', 'python', 'ruby', 'typescript-node-nextjs')
 
 function Show-GraftcodeIntro {
     Clear-Host
@@ -74,9 +81,6 @@ function Download-FileWithSpinner {
     Write-Host "`rDownloaded $Label " -ForegroundColor Green
 }
 
-$RulesRawBase = "https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/rules"
-$RuleLangs = @('dotnet', 'java', 'kotlin', 'php', 'python', 'ruby', 'typescript-node-nextjs')
-
 function Download-GraftcodeRuleSet {
     param(
         [string]$RemoteDir,
@@ -103,7 +107,82 @@ function Download-GraftcodeRuleSet {
     }
 }
 
+function Install-GraftcodeRulesForIde {
+    param([string]$Ide)
+
+    switch ($Ide.ToLowerInvariant()) {
+        { $_ -in @('cursor', '1') } {
+            $RulesDir = Join-Path $PWD ".cursor\rules"
+            Download-GraftcodeRuleSet -RemoteDir "$RulesRawBase/Cursor/.cursor/rules" -LocalDir $RulesDir -Extension "mdc" -IncludeRouter
+            Write-Host ""
+            Write-Host "Installed Graftcode Cursor rules in:" -ForegroundColor Green
+            Write-Host $RulesDir
+        }
+        { $_ -in @('claude', 'claude-code', '2') } {
+            Download-FileWithSpinner -Url "$RulesRawBase/Claude/CLAUDE.md" -OutputPath (Join-Path $PWD "CLAUDE.md") -Label "CLAUDE.md"
+            $RulesDir = Join-Path $PWD ".claude\rules"
+            Download-GraftcodeRuleSet -RemoteDir "$RulesRawBase/Claude/.claude/rules" -LocalDir $RulesDir -Extension "md"
+            Write-Host ""
+            Write-Host "Installed Graftcode Claude Code rules in:" -ForegroundColor Green
+            Write-Host (Join-Path $PWD "CLAUDE.md")
+            Write-Host $RulesDir
+        }
+        { $_ -in @('copilot', 'github-copilot', 'github', '3') } {
+            $GithubDir = Join-Path $PWD ".github"
+            if (-not (Test-Path $GithubDir)) {
+                New-Item -ItemType Directory -Path $GithubDir -Force | Out-Null
+            }
+            Download-FileWithSpinner -Url "$RulesRawBase/Copilot/.github/copilot-instructions.md" -OutputPath (Join-Path $GithubDir "copilot-instructions.md") -Label "copilot-instructions.md"
+            $RulesDir = Join-Path $GithubDir "instructions"
+            Download-GraftcodeRuleSet -RemoteDir "$RulesRawBase/Copilot/.github/instructions" -LocalDir $RulesDir -Extension "instructions.md"
+            Write-Host ""
+            Write-Host "Installed Graftcode GitHub Copilot rules in:" -ForegroundColor Green
+            Write-Host (Join-Path $GithubDir "copilot-instructions.md")
+            Write-Host $RulesDir
+        }
+        { $_ -in @('cline', '4') } {
+            $RulesDir = Join-Path $PWD ".clinerules"
+            Download-GraftcodeRuleSet -RemoteDir "$RulesRawBase/Cline/.clinerules" -LocalDir $RulesDir -Extension "md" -IncludeRouter
+            Write-Host ""
+            Write-Host "Installed Graftcode Cline rules in:" -ForegroundColor Green
+            Write-Host $RulesDir
+        }
+        { $_ -in @('windsurf', '5') } {
+            $RulesDir = Join-Path $PWD ".windsurf\rules"
+            Download-GraftcodeRuleSet -RemoteDir "$RulesRawBase/Windsurf/.windsurf/rules" -LocalDir $RulesDir -Extension "md" -IncludeRouter
+            Write-Host ""
+            Write-Host "Installed Graftcode Windsurf rules in:" -ForegroundColor Green
+            Write-Host $RulesDir
+        }
+        { $_ -in @('continue', '6') } {
+            $RulesDir = Join-Path $PWD ".continue\rules"
+            Download-GraftcodeRuleSet -RemoteDir "$RulesRawBase/Continue/.continue/rules" -LocalDir $RulesDir -Extension "md" -IncludeRouter
+            Write-Host ""
+            Write-Host "Installed Graftcode Continue rules in:" -ForegroundColor Green
+            Write-Host $RulesDir
+        }
+        { $_ -in @('aider', '7') } {
+            Download-FileWithSpinner -Url "$RulesRawBase/Aider/CONVENTIONS.md" -OutputPath (Join-Path $PWD "CONVENTIONS.md") -Label "CONVENTIONS.md"
+            Download-FileWithSpinner -Url "$RulesRawBase/Aider/.aider.conf.yml" -OutputPath (Join-Path $PWD ".aider.conf.yml") -Label ".aider.conf.yml"
+            Write-Host ""
+            Write-Host "Installed Graftcode Aider rules in:" -ForegroundColor Green
+            Write-Host (Join-Path $PWD "CONVENTIONS.md")
+            Write-Host (Join-Path $PWD ".aider.conf.yml")
+        }
+        default {
+            throw "Unknown IDE '$Ide'. Use: cursor, claude, copilot, cline, windsurf, continue, aider"
+        }
+    }
+}
+
 function Install-GraftcodeRules {
+    param([string]$Ide = '')
+
+    if ($Ide) {
+        Install-GraftcodeRulesForIde -Ide $Ide
+        return
+    }
+
     Write-Host ""
     Write-Host "Choose IDE:" -ForegroundColor Yellow
     Write-Host "  1. Cursor"
@@ -116,139 +195,69 @@ function Install-GraftcodeRules {
     Write-Host ""
 
     $IdeChoice = Read-MenuChoice -Prompt "Enter choice [1-7]" -AllowedChoices @('1', '2', '3', '4', '5', '6', '7')
-
-    switch ($IdeChoice) {
-        '1' {
-            $RulesDir = Join-Path $PWD ".cursor\rules"
-            Download-GraftcodeRuleSet -RemoteDir "$RulesRawBase/Cursor/.cursor/rules" -LocalDir $RulesDir -Extension "mdc" -IncludeRouter
-
-            Write-Host ""
-            Write-Host "Installed Graftcode Cursor rules in:" -ForegroundColor Green
-            Write-Host $RulesDir
-        }
-        '2' {
-            Download-FileWithSpinner -Url "$RulesRawBase/Claude/CLAUDE.md" -OutputPath (Join-Path $PWD "CLAUDE.md") -Label "CLAUDE.md"
-            $RulesDir = Join-Path $PWD ".claude\rules"
-            Download-GraftcodeRuleSet -RemoteDir "$RulesRawBase/Claude/.claude/rules" -LocalDir $RulesDir -Extension "md"
-
-            Write-Host ""
-            Write-Host "Installed Graftcode Claude Code rules in:" -ForegroundColor Green
-            Write-Host (Join-Path $PWD "CLAUDE.md")
-            Write-Host $RulesDir
-        }
-        '3' {
-            $GithubDir = Join-Path $PWD ".github"
-            if (-not (Test-Path $GithubDir)) {
-                New-Item -ItemType Directory -Path $GithubDir -Force | Out-Null
-            }
-            Download-FileWithSpinner -Url "$RulesRawBase/Copilot/.github/copilot-instructions.md" -OutputPath (Join-Path $GithubDir "copilot-instructions.md") -Label "copilot-instructions.md"
-            $RulesDir = Join-Path $GithubDir "instructions"
-            Download-GraftcodeRuleSet -RemoteDir "$RulesRawBase/Copilot/.github/instructions" -LocalDir $RulesDir -Extension "instructions.md"
-
-            Write-Host ""
-            Write-Host "Installed Graftcode GitHub Copilot rules in:" -ForegroundColor Green
-            Write-Host (Join-Path $GithubDir "copilot-instructions.md")
-            Write-Host $RulesDir
-        }
-        '4' {
-            $RulesDir = Join-Path $PWD ".clinerules"
-            Download-GraftcodeRuleSet -RemoteDir "$RulesRawBase/Cline/.clinerules" -LocalDir $RulesDir -Extension "md" -IncludeRouter
-
-            Write-Host ""
-            Write-Host "Installed Graftcode Cline rules in:" -ForegroundColor Green
-            Write-Host $RulesDir
-        }
-        '5' {
-            $RulesDir = Join-Path $PWD ".windsurf\rules"
-            Download-GraftcodeRuleSet -RemoteDir "$RulesRawBase/Windsurf/.windsurf/rules" -LocalDir $RulesDir -Extension "md" -IncludeRouter
-
-            Write-Host ""
-            Write-Host "Installed Graftcode Windsurf rules in:" -ForegroundColor Green
-            Write-Host $RulesDir
-        }
-        '6' {
-            $RulesDir = Join-Path $PWD ".continue\rules"
-            Download-GraftcodeRuleSet -RemoteDir "$RulesRawBase/Continue/.continue/rules" -LocalDir $RulesDir -Extension "md" -IncludeRouter
-
-            Write-Host ""
-            Write-Host "Installed Graftcode Continue rules in:" -ForegroundColor Green
-            Write-Host $RulesDir
-        }
-        '7' {
-            Download-FileWithSpinner -Url "$RulesRawBase/Aider/CONVENTIONS.md" -OutputPath (Join-Path $PWD "CONVENTIONS.md") -Label "CONVENTIONS.md"
-            Download-FileWithSpinner -Url "$RulesRawBase/Aider/.aider.conf.yml" -OutputPath (Join-Path $PWD ".aider.conf.yml") -Label ".aider.conf.yml"
-
-            Write-Host ""
-            Write-Host "Installed Graftcode Aider rules in:" -ForegroundColor Green
-            Write-Host (Join-Path $PWD "CONVENTIONS.md")
-            Write-Host (Join-Path $PWD ".aider.conf.yml")
-        }
-    }
+    Install-GraftcodeRulesForIde -Ide $IdeChoice
 }
 
 function ConvertTo-WindowsArchSuffix {
-  param([string]$Value)
+    param([string]$Value)
 
-  if ([string]::IsNullOrWhiteSpace($Value)) {
-    return $null
-  }
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        return $null
+    }
 
-  $Normalized = $Value.Trim().ToLowerInvariant()
-  if ($Normalized -match 'arm') {
-    return 'arm64'
-  }
+    $Normalized = $Value.Trim().ToLowerInvariant()
+    if ($Normalized -match 'arm') {
+        return 'arm64'
+    }
 
-  switch ($Normalized) {
-    { $_ -in 'arm64', 'aarch64' } { return 'arm64' }
-    { $_ -in 'amd64', 'x64', 'x86_64' } { return 'amd64' }
-    { $_ -in 'x86', 'i386', 'i686', 'win32' } { return 'x86' }
-    default { return $null }
-  }
+    switch ($Normalized) {
+        { $_ -in 'arm64', 'aarch64' } { return 'arm64' }
+        { $_ -in 'amd64', 'x64', 'x86_64' } { return 'amd64' }
+        { $_ -in 'x86', 'i386', 'i686', 'win32' } { return 'x86' }
+        default { return $null }
+    }
 }
 
 function Get-NativeWindowsArchSuffix {
-  # Collect native OS signals first. Under x64 emulation on Windows ARM,
-  # PROCESSOR_ARCHITECTURE and sometimes OSArchitecture report x64/AMD64
-  # while Win32_OperatingSystem still reports an ARM CPU.
-  $NativeSignals = @()
+    $NativeSignals = @()
 
-  if ($env:PROCESSOR_ARCHITEW6432) {
-    $NativeSignals += $env:PROCESSOR_ARCHITEW6432
-  }
+    if ($env:PROCESSOR_ARCHITEW6432) {
+        $NativeSignals += $env:PROCESSOR_ARCHITEW6432
+    }
 
-  try {
-    $NativeSignals += (Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction Stop).OSArchitecture
-  }
-  catch {}
-
-  try {
-    $NativeSignals += [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
-  }
-  catch {
     try {
-      $NativeSignals += [System.Runtime.InteropServices.RuntimeInformation,mscorlib]::OSArchitecture.ToString()
+        $NativeSignals += (Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction Stop).OSArchitecture
     }
     catch {}
-  }
 
-  $Resolved = @()
-  foreach ($Signal in $NativeSignals) {
-    $Suffix = ConvertTo-WindowsArchSuffix $Signal
-    if ($Suffix) {
-      $Resolved += $Suffix
+    try {
+        $NativeSignals += [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
     }
-  }
+    catch {
+        try {
+            $NativeSignals += [System.Runtime.InteropServices.RuntimeInformation,mscorlib]::OSArchitecture.ToString()
+        }
+        catch {}
+    }
 
-  if ($Resolved -contains 'arm64') { return 'arm64' }
-  if ($Resolved -contains 'amd64') { return 'amd64' }
-  if ($Resolved -contains 'x86') { return 'x86' }
+    $Resolved = @()
+    foreach ($Signal in $NativeSignals) {
+        $Suffix = ConvertTo-WindowsArchSuffix $Signal
+        if ($Suffix) {
+            $Resolved += $Suffix
+        }
+    }
 
-  $ProcessArch = ConvertTo-WindowsArchSuffix $env:PROCESSOR_ARCHITECTURE
-  if ($ProcessArch) {
-    return $ProcessArch
-  }
+    if ($Resolved -contains 'arm64') { return 'arm64' }
+    if ($Resolved -contains 'amd64') { return 'amd64' }
+    if ($Resolved -contains 'x86') { return 'x86' }
 
-  throw "Unsupported Windows architecture. PROCESSOR_ARCHITECTURE=$($env:PROCESSOR_ARCHITECTURE); PROCESSOR_ARCHITEW6432=$($env:PROCESSOR_ARCHITEW6432)"
+    $ProcessArch = ConvertTo-WindowsArchSuffix $env:PROCESSOR_ARCHITECTURE
+    if ($ProcessArch) {
+        return $ProcessArch
+    }
+
+    throw "Unsupported Windows architecture. PROCESSOR_ARCHITECTURE=$($env:PROCESSOR_ARCHITECTURE); PROCESSOR_ARCHITEW6432=$($env:PROCESSOR_ARCHITEW6432)"
 }
 
 function Install-GraftcodeGateway {
@@ -433,45 +442,215 @@ function Install-GraftcodePlugin {
 }
 
 function Install-GraftcodePlugins {
-    Write-Host ""
-    Write-Host "Choose plugin:" -ForegroundColor Yellow
-    Write-Host "  1. RabbitMQ"
-    Write-Host "  2. Azure Service Bus"
-    Write-Host ""
+    param([string]$Plugin = '')
 
-    $PluginChoice = Read-MenuChoice -Prompt "Enter choice [1/2]" -AllowedChoices @('1', '2')
+    $Resolved = $Plugin.ToLowerInvariant()
 
-    switch ($PluginChoice) {
-        '1' {
+    if (-not $Resolved) {
+        Write-Host ""
+        Write-Host "Choose plugin:" -ForegroundColor Yellow
+        Write-Host "  1. RabbitMQ"
+        Write-Host "  2. Azure Service Bus"
+        Write-Host ""
+        $PluginChoice = Read-MenuChoice -Prompt "Enter choice [1/2]" -AllowedChoices @('1', '2')
+        $Resolved = $PluginChoice
+    }
+
+    switch ($Resolved) {
+        { $_ -in @('rabbitmq', 'rabbit', '1') } {
             Install-GraftcodePlugin `
                 -PluginName 'rabbitmq' `
                 -PluginLabel 'RabbitMQ' `
                 -Patterns @('libRabbitmqPlugin.so', 'libRabbitmqPlugin.dylib', 'RabbitmqPlugin.dll')
         }
-        '2' {
+        { $_ -in @('servicebus', 'service-bus', 'azure-servicebus', 'asb', '2') } {
             Install-GraftcodePlugin `
                 -PluginName 'servicebus' `
                 -PluginLabel 'Service Bus' `
                 -Patterns @('libServiceBusPlugin.so', 'libServiceBusPlugin.dylib', 'ServiceBusPlugin.dll')
         }
+        default {
+            throw "Unknown plugin '$Plugin'. Use: rabbitmq, servicebus"
+        }
     }
 }
 
-Show-GraftcodeIntro
+function Test-GrftInstalledCopy {
+    if (-not $PSScriptRoot) {
+        return $false
+    }
 
-Write-Host "What do you want to install?" -ForegroundColor Yellow
-Write-Host "  1. Graftcode Rules file"
-Write-Host "  2. Graftcode Gateway"
-Write-Host "  3. Graftcode Plugins"
-Write-Host ""
-
-$Choice = Read-MenuChoice -Prompt "Enter choice [1/2/3]" -AllowedChoices @('1', '2', '3')
-
-switch ($Choice) {
-    '1' { Install-GraftcodeRules }
-    '2' { Install-GraftcodeGateway }
-    '3' { Install-GraftcodePlugins }
+    try {
+        $ScriptHome = (Resolve-Path -LiteralPath $PSScriptRoot).Path.TrimEnd('\')
+        $ExpectedHome = (Resolve-Path -LiteralPath $GrftHome -ErrorAction Stop).Path.TrimEnd('\')
+        return ($ScriptHome -eq $ExpectedHome)
+    }
+    catch {
+        return ($PSScriptRoot.TrimEnd('\') -eq $GrftHome.TrimEnd('\'))
+    }
 }
 
-Write-Host ""
-Write-Host "Done." -ForegroundColor Green
+function Compare-GrftVersion {
+    param(
+        [string]$Left,
+        [string]$Right
+    )
+
+    $LeftParts = @($Left.Trim() -split '\.' | ForEach-Object { [int]($_ -replace '[^0-9]', '0') })
+    $RightParts = @($Right.Trim() -split '\.' | ForEach-Object { [int]($_ -replace '[^0-9]', '0') })
+    $Len = [Math]::Max($LeftParts.Count, $RightParts.Count)
+
+    for ($i = 0; $i -lt $Len; $i++) {
+        $L = if ($i -lt $LeftParts.Count) { $LeftParts[$i] } else { 0 }
+        $R = if ($i -lt $RightParts.Count) { $RightParts[$i] } else { 0 }
+        if ($L -lt $R) { return -1 }
+        if ($L -gt $R) { return 1 }
+    }
+
+    return 0
+}
+
+function Update-GrftIfNeeded {
+    param([string[]]$ForwardArgs)
+
+    if ($env:GRFT_SKIP_UPDATE -eq '1') {
+        return
+    }
+
+    if (-not (Test-GrftInstalledCopy)) {
+        return
+    }
+
+    try {
+        $RemoteVersion = (Invoke-WebRequest -Uri "$GrftRawBase/VERSION" -UseBasicParsing).Content.Trim()
+    }
+    catch {
+        return
+    }
+
+    if (-not $RemoteVersion) {
+        return
+    }
+
+    if ((Compare-GrftVersion -Left $GrftVersion -Right $RemoteVersion) -ge 0) {
+        return
+    }
+
+    Write-Host "Updating grft CLI $GrftVersion -> $RemoteVersion ..." -ForegroundColor Yellow
+
+    $BinDir = Join-Path $GrftHome 'bin'
+    New-Item -ItemType Directory -Path $GrftHome -Force | Out-Null
+    New-Item -ItemType Directory -Path $BinDir -Force | Out-Null
+
+    Download-FileWithSpinner -Url "$GrftRawBase/get.ps1" -OutputPath (Join-Path $GrftHome 'get.ps1') -Label 'get.ps1'
+    Download-FileWithSpinner -Url "$GrftRawBase/VERSION" -OutputPath (Join-Path $GrftHome 'VERSION') -Label 'VERSION'
+    try {
+        Download-FileWithSpinner -Url "$GrftRawBase/bin/grft.cmd" -OutputPath (Join-Path $BinDir 'grft.cmd') -Label 'grft.cmd'
+    }
+    catch {}
+
+    $env:GRFT_SKIP_UPDATE = '1'
+    $ArgList = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $GrftHome 'get.ps1')) + $ForwardArgs
+    $Process = Start-Process -FilePath 'powershell.exe' -ArgumentList $ArgList -NoNewWindow -Wait -PassThru
+    exit $Process.ExitCode
+}
+
+function Show-GrftHelp {
+    Write-Host "grft - Graftcode CLI ($GrftVersion)"
+    Write-Host ""
+    Write-Host "Usage:"
+    Write-Host '  grft                          Interactive installer'
+    Write-Host '  grft get                      Interactive installer'
+    Write-Host '  grft get gg                   Download Graftcode Gateway'
+    Write-Host '  grft get rules <ide>          Install AI rules (cursor, claude, copilot, ...)'
+    Write-Host '  grft get plugin <name>        Install plugin (rabbitmq, servicebus)'
+    Write-Host '  grft version                  Show CLI version'
+    Write-Host ""
+}
+
+function Invoke-GrftInteractive {
+    Show-GraftcodeIntro
+
+    Write-Host "What do you want to install?" -ForegroundColor Yellow
+    Write-Host "  1. Graftcode Rules file"
+    Write-Host "  2. Graftcode Gateway"
+    Write-Host "  3. Graftcode Plugins"
+    Write-Host ""
+
+    $Choice = Read-MenuChoice -Prompt "Enter choice [1/2/3]" -AllowedChoices @('1', '2', '3')
+
+    switch ($Choice) {
+        '1' { Install-GraftcodeRules }
+        '2' { Install-GraftcodeGateway }
+        '3' { Install-GraftcodePlugins }
+    }
+
+    Write-Host ""
+    Write-Host "Done." -ForegroundColor Green
+}
+
+function Invoke-GrftCommand {
+    param([string[]]$CliArgs)
+
+    if (-not $CliArgs -or $CliArgs.Count -eq 0) {
+        Invoke-GrftInteractive
+        return
+    }
+
+    $Command = $CliArgs[0].ToLowerInvariant()
+
+    if ($Command -in @('version', '--version', '-v')) {
+        Write-Host "grft $GrftVersion"
+        return
+    }
+
+    if ($Command -in @('help', '--help', '-h')) {
+        Show-GrftHelp
+        return
+    }
+
+    if ($Command -ne 'get') {
+        Show-GrftHelp
+        throw "Unknown command '$($CliArgs[0])'. Commands start with: grft get ..."
+    }
+
+    if ($CliArgs.Count -eq 1) {
+        Invoke-GrftInteractive
+        return
+    }
+
+    $Target = $CliArgs[1].ToLowerInvariant()
+
+    switch ($Target) {
+        { $_ -in @('gg', 'gateway') } {
+            Install-GraftcodeGateway
+        }
+        { $_ -in @('rules', 'rule') } {
+            if ($CliArgs.Count -lt 3) {
+                Install-GraftcodeRules
+            }
+            else {
+                Install-GraftcodeRules -Ide $CliArgs[2]
+            }
+        }
+        { $_ -in @('plugin', 'plugins') } {
+            if ($CliArgs.Count -lt 3) {
+                Install-GraftcodePlugins
+            }
+            else {
+                Install-GraftcodePlugins -Plugin $CliArgs[2]
+            }
+        }
+        default {
+            Show-GrftHelp
+            throw "Unknown get target '$($CliArgs[1])'. Use: gg, rules, plugin"
+        }
+    }
+
+    Write-Host ""
+    Write-Host "Done." -ForegroundColor Green
+}
+
+$ForwardArgs = @($args)
+Update-GrftIfNeeded -ForwardArgs $ForwardArgs
+Invoke-GrftCommand -CliArgs $ForwardArgs
