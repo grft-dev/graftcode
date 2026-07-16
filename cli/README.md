@@ -43,6 +43,7 @@ grft get rules claude
 grft get rules copilot
 grft get plugin rabbitmq
 grft get plugin servicebus
+grft uninstall                # remove ~/.grft and PATH entry
 grft version
 ```
 

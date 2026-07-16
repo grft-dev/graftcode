@@ -1,8 +1,8 @@
-# GRFT_VERSION=0.1.0
+# GRFT_VERSION=0.1.2
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
-$GrftVersion = '0.1.0'
+$GrftVersion = '0.1.2'
 $GrftRawBase = 'https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli'
 $GrftHome = if ($env:GRFT_HOME) { $env:GRFT_HOME } else { Join-Path $env:USERPROFILE '.grft' }
 $RulesRawBase = "https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/rules"
@@ -31,6 +31,10 @@ function Show-GraftcodeIntro {
     Write-Host "     - gateway for your processor"
     Write-Host "  3. Download Graftcode Plugins"
     Write-Host "     - RabbitMQ and Azure Service Bus plugins for the gateway"
+    if (Test-GrftHomePresent) {
+        Write-Host "  4. Uninstall Graftcode CLI"
+        Write-Host "     - remove ~/.grft and PATH entry"
+    }
     Write-Host ""
 }
 
@@ -475,6 +479,11 @@ function Install-GraftcodePlugins {
     }
 }
 
+function Test-GrftHomePresent {
+    $Marker = Join-Path $GrftHome 'get.ps1'
+    return (Test-Path -LiteralPath $Marker)
+}
+
 function Test-GrftInstalledCopy {
     if (-not $PSScriptRoot) {
         return $false
@@ -555,6 +564,51 @@ function Update-GrftIfNeeded {
     exit $Process.ExitCode
 }
 
+function Uninstall-GrftCli {
+    $BinDir = Join-Path $GrftHome 'bin'
+    $RemovedHome = $false
+    $RemovedPath = $false
+
+    $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+    if ($userPath) {
+        $pathEntries = @($userPath -split ';' | Where-Object { $_ -ne '' })
+        $filtered = @($pathEntries | Where-Object {
+            $_.TrimEnd('\') -ne $BinDir.TrimEnd('\')
+        })
+
+        if ($filtered.Count -ne $pathEntries.Count) {
+            [Environment]::SetEnvironmentVariable('Path', ($filtered -join ';'), 'User')
+            $RemovedPath = $true
+            Write-Host "Removed $BinDir from User PATH." -ForegroundColor DarkGray
+        }
+    }
+
+    if ($env:Path) {
+        $sessionEntries = @($env:Path -split ';' | Where-Object { $_ -ne '' })
+        $sessionFiltered = @($sessionEntries | Where-Object {
+            $_.TrimEnd('\') -ne $BinDir.TrimEnd('\')
+        })
+        if ($sessionFiltered.Count -ne $sessionEntries.Count) {
+            $env:Path = $sessionFiltered -join ';'
+        }
+    }
+
+    if (Test-Path -LiteralPath $GrftHome) {
+        Remove-Item -LiteralPath $GrftHome -Recurse -Force
+        $RemovedHome = $true
+        Write-Host "Removed $GrftHome" -ForegroundColor DarkGray
+    }
+
+    if (-not $RemovedHome -and -not $RemovedPath) {
+        Write-Host "Graftcode CLI is not installed (no $GrftHome found)." -ForegroundColor Yellow
+        return
+    }
+
+    Write-Host ""
+    Write-Host "Uninstalled Graftcode CLI." -ForegroundColor Green
+    Write-Host "Open a new terminal if grft is still resolved from a cached PATH." -ForegroundColor DarkGray
+}
+
 function Show-GrftHelp {
     Write-Host "grft - Graftcode CLI ($GrftVersion)"
     Write-Host ""
@@ -564,6 +618,7 @@ function Show-GrftHelp {
     Write-Host '  grft get gg                   Download Graftcode Gateway'
     Write-Host '  grft get rules <ide>          Install AI rules (cursor, claude, copilot, ...)'
     Write-Host '  grft get plugin <name>        Install plugin (rabbitmq, servicebus)'
+    Write-Host '  grft uninstall                Remove ~/.grft and PATH entry'
     Write-Host '  grft version                  Show CLI version'
     Write-Host ""
 }
@@ -571,18 +626,26 @@ function Show-GrftHelp {
 function Invoke-GrftInteractive {
     Show-GraftcodeIntro
 
-    Write-Host "What do you want to install?" -ForegroundColor Yellow
+    Write-Host "What do you want to do?" -ForegroundColor Yellow
     Write-Host "  1. Graftcode Rules file"
     Write-Host "  2. Graftcode Gateway"
     Write-Host "  3. Graftcode Plugins"
-    Write-Host ""
 
-    $Choice = Read-MenuChoice -Prompt "Enter choice [1/2/3]" -AllowedChoices @('1', '2', '3')
+    $Allowed = @('1', '2', '3')
+    if (Test-GrftHomePresent) {
+        Write-Host "  4. Uninstall Graftcode CLI"
+        $Allowed += '4'
+    }
+
+    Write-Host ""
+    $Prompt = if ($Allowed.Count -eq 4) { "Enter choice [1/2/3/4]" } else { "Enter choice [1/2/3]" }
+    $Choice = Read-MenuChoice -Prompt $Prompt -AllowedChoices $Allowed
 
     switch ($Choice) {
         '1' { Install-GraftcodeRules }
         '2' { Install-GraftcodeGateway }
         '3' { Install-GraftcodePlugins }
+        '4' { Uninstall-GrftCli; return }
     }
 
     Write-Host ""
@@ -609,9 +672,14 @@ function Invoke-GrftCommand {
         return
     }
 
+    if ($Command -in @('uninstall', 'remove')) {
+        Uninstall-GrftCli
+        return
+    }
+
     if ($Command -ne 'get') {
         Show-GrftHelp
-        throw "Unknown command '$($CliArgs[0])'. Commands start with: grft get ..."
+        throw "Unknown command '$($CliArgs[0])'. Try: grft get ..., grft uninstall, grft version"
     }
 
     if ($CliArgs.Count -eq 1) {

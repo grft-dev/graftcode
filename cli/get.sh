@@ -1,8 +1,8 @@
 #!/bin/sh
-# GRFT_VERSION=0.1.0
+# GRFT_VERSION=0.1.2
 set -eu
 
-GRFT_VERSION="0.1.0"
+GRFT_VERSION="0.1.2"
 GRFT_RAW_BASE="https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli"
 GRFT_HOME="${GRFT_HOME:-$HOME/.grft}"
 
@@ -64,11 +64,19 @@ EOF
   say "     - gateway for your processor"
   say "  3. Download Graftcode Plugins"
   say "     - RabbitMQ and Azure Service Bus plugins for the gateway"
+  if is_grft_home_present; then
+    say "  4. Uninstall Graftcode CLI"
+    say "     - remove ~/.grft and PATH entry"
+  fi
   say ""
 }
 
 has_cmd() {
   command -v "$1" >/dev/null 2>&1
+}
+
+is_grft_home_present() {
+  [ -f "$GRFT_HOME/get.sh" ]
 }
 
 read_from_tty() {
@@ -619,25 +627,107 @@ show_help() {
   say "  grft get gg                   Download Graftcode Gateway"
   say "  grft get rules <ide>          Install AI rules (cursor, claude, copilot, ...)"
   say "  grft get plugin <name>        Install plugin (rabbitmq, servicebus)"
+  say "  grft uninstall                Remove ~/.grft and PATH entry"
   say "  grft version                  Show CLI version"
   say ""
+}
+
+strip_path_rc() {
+  rc_file="$1"
+  if [ ! -f "$rc_file" ]; then
+    return 0
+  fi
+
+  if ! grep -F '.grft/bin' "$rc_file" >/dev/null 2>&1; then
+    return 0
+  fi
+
+  tmp_file="$(mktemp)"
+  # Drop Graftcode CLI block lines and bare PATH exports that mention .grft/bin
+  awk '
+    /^# Graftcode CLI$/ { skip=1; next }
+    skip && /^export PATH=.*\.grft\/bin/ { skip=0; next }
+    skip { skip=0 }
+    /\.grft\/bin/ { next }
+    { print }
+  ' "$rc_file" > "$tmp_file"
+  mv "$tmp_file" "$rc_file"
+  say "Removed PATH entry from $rc_file"
+}
+
+uninstall_grft() {
+  bin_dir="$GRFT_HOME/bin"
+  removed_home=0
+  removed_path=0
+
+  # Drop bin dir from current session PATH without requiring paste(1).
+  new_path=""
+  old_ifs=$IFS
+  IFS=:
+  # shellcheck disable=SC2086
+  for p in $PATH; do
+    [ "$p" = "$bin_dir" ] && continue
+    if [ -z "$new_path" ]; then
+      new_path="$p"
+    else
+      new_path="$new_path:$p"
+    fi
+  done
+  IFS=$old_ifs
+  if [ "$PATH" != "$new_path" ]; then
+    PATH="$new_path"
+    export PATH
+    removed_path=1
+  fi
+
+  for rc_file in "$HOME/.zshrc" "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.profile"; do
+    if [ -f "$rc_file" ] && grep -F '.grft/bin' "$rc_file" >/dev/null 2>&1; then
+      strip_path_rc "$rc_file"
+      removed_path=1
+    fi
+  done
+
+  if [ -d "$GRFT_HOME" ]; then
+    rm -rf "$GRFT_HOME"
+    removed_home=1
+    say "Removed $GRFT_HOME"
+  fi
+
+  if [ "$removed_home" -eq 0 ] && [ "$removed_path" -eq 0 ]; then
+    say "Graftcode CLI is not installed (no $GRFT_HOME found)."
+    return 0
+  fi
+
+  say ""
+  say "Uninstalled Graftcode CLI."
+  say "Open a new terminal if grft is still resolved from a cached PATH."
 }
 
 run_interactive() {
   show_intro
 
-  say "What do you want to install?"
+  say "What do you want to do?"
   say "  1. Graftcode Rules file"
   say "  2. Graftcode Gateway"
   say "  3. Graftcode Plugins"
-  say ""
 
-  choice="$(read_choice_set "1 2 3" "1/2/3")"
+  if is_grft_home_present; then
+    say "  4. Uninstall Graftcode CLI"
+    say ""
+    choice="$(read_choice_set "1 2 3 4" "1/2/3/4")"
+  else
+    say ""
+    choice="$(read_choice_set "1 2 3" "1/2/3")"
+  fi
 
   case "$choice" in
     1) install_rules ;;
     2) install_gateway ;;
     3) install_plugins ;;
+    4)
+      uninstall_grft
+      return 0
+      ;;
   esac
 
   say ""
@@ -661,11 +751,15 @@ run_command() {
       show_help
       return 0
       ;;
+    uninstall|remove)
+      uninstall_grft
+      return 0
+      ;;
     get)
       ;;
     *)
       show_help
-      say "Unknown command '$1'. Commands start with: grft get ..."
+      say "Unknown command '$1'. Try: grft get ..., grft uninstall, grft version"
       exit 1
       ;;
   esac
