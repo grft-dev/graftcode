@@ -327,16 +327,27 @@ config property names. With a Project Key: use the portal project, pass the key 
 in env config (never hardcode).
 
 ## Producer workflow (expose a Node service)
+Graftcode works **with or without Docker**. If the user has **not** said which they want, **ask**
+before scaffolding Docker or downloading a local `gg`. Local-`gg` details (build/output folder →
+`iwr grft.dev/get/gg | iex` / `curl -fsSL grft.dev/get/gg | sh` → run `gg` → unique ports per service)
+are in the router section **Hosting: Docker containers OR local `gg`**.
+
 1. Identify the service boundary; write/update a plain TS/JS module with intentional public methods —
    **prefer `static` methods / exported functions** (stateless facade); instance only if truly stateful.
 2. Keep inputs/outputs simple; no framework-specific public types.
 3. Build/transpile TS; ensure `package.json` `main`/`exports` points to the correct entry.
-4. Run Graftcode Gateway per the JS docs. If you host it in Docker, fetch `gg.deb` quietly
-   (`wget -q` / `curl -sS`) — the ~107 MB progress bar is pure token noise.
+4. **Host `gg`:**
+   - **Local (no containers):** `cd` to the folder that contains the module files, run
+     `iwr grft.dev/get/gg | iex` (Windows) or `curl -fsSL grft.dev/get/gg | sh` (macOS/Linux), then
+     `.\gg.exe --modules .` / `./gg --modules .`. If more than one service is running, give each unique
+     `--port` / `--http2Port` values.
+   - **Docker:** fetch `gg.deb` quietly (`wget -q` / `curl -sS`) — the ~107 MB progress bar is pure
+     token noise — and follow the language/Dockerfile pattern from Vision docs.
 5. Don't read full `docker logs`/`gg` output to get the command: poll the route until 200 —
    `curl -sS --max-time 5 http://localhost:<mappedPort>/npm` is both the readiness check and the exact
    install command. (gg v1.3.0 serves Vision routes on the **same port as WS** — use the mapped WS
-   port. See **Token discipline** in the router.) Then consume from the target app.
+   port, or the local `--port` you chose. See **Token discipline** in the router.) Then consume from
+   the target app.
 
 ## Consumer workflow (call a Graft)
 1. Open the relevant Gateway/Vision output; copy the generated **npm install** command; install it.

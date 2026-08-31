@@ -148,9 +148,28 @@ $one = GraftConfig::invokeWithHeaders(
 - The GUID **changes on every gateway restart** unless you pass `--projectKey` (stable IDs for CI/CD;
   create a project at https://portal.graftcode.com).
 
-## Workflow (Docker-hosted) — [INFERRED]
-`gg` is hosted via Docker; the gateway introspects your PHP classes and exposes public methods. Because
-there is no published PHP Quick Start, **verify the image, module path, and `CMD` against `gg` output**.
+## Hosting workflow — Docker OR local `gg` (ask first)
+Graftcode works **with or without Docker**. If the user has **not** said which they want, **ask**
+before scaffolding a `Dockerfile` or downloading a local `gg`. Full local-`gg` steps (module dir →
+`iwr grft.dev/get/gg | iex` / `curl -fsSL grft.dev/get/gg | sh` → run `gg` → unique ports per service)
+are in the router section **Hosting: Docker containers OR local `gg`**.
+
+### Workflow (local `gg`, no containers)
+1. Design contract (**`public static`** typed methods + primitive/string DTOs + list arrays; instance
+   only if truly stateful).
+2. Create the PHP class file(s) (+ `composer install` if needed).
+3. `cd` into the module directory (or parent) that you will pass to `--modules`.
+4. Download `gg` for this CPU: **Windows** `iwr grft.dev/get/gg | iex` · **macOS/Linux**
+   `curl -fsSL grft.dev/get/gg | sh`.
+5. Run: `.\gg.exe --runtime php --modules ./` (or `./gg --runtime php --modules ./energy-service/`).
+   For a **second+** service, pick free ports (`--port`, `--http2Port`, …) so instances don't collide.
+6. Poll the Vision language route (e.g. `/composer`) on that port until 200 for the install command.
+   Verify flags/path against `gg` output — PHP Quick Start may lag docs.
+
+### Workflow (Docker-hosted) — [INFERRED]
+Use this path only when the user chose containers (or already has Docker hosting in the project).
+The gateway introspects your PHP classes and exposes public methods. Because there is no published PHP
+Quick Start, **verify the image, module path, and `CMD` against `gg` output**.
 
 1. Design contract (**`public static`** typed methods + primitive/string DTOs + list arrays; instance
    only if truly stateful).

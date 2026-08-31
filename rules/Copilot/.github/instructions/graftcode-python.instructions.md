@@ -141,8 +141,27 @@ one = GraftConfig.invoke_with_headers(
 - The GUID **changes on every gateway restart** unless you pass `--projectKey` (stable IDs for CI/CD;
   create a project at https://portal.graftcode.com).
 
-## Workflow (Docker-hosted) — [VERIFIED]
-`gg` is hosted via Docker; the gateway reads your module directory and exposes public methods.
+## Hosting workflow — Docker OR local `gg` (ask first)
+Graftcode works **with or without Docker**. If the user has **not** said which they want, **ask**
+before scaffolding a `Dockerfile` or downloading a local `gg`. Full local-`gg` steps (module dir →
+`iwr grft.dev/get/gg | iex` / `curl -fsSL grft.dev/get/gg | sh` → run `gg` → unique ports per service)
+are in the router section **Hosting: Docker containers OR local `gg`**.
+
+### Workflow (local `gg`, no containers)
+1. Design contract (**`@staticmethod`** / module funcs, type-hinted, primitive/list DTOs; instance only
+   if truly stateful).
+2. Create the module file(s) + `pyproject.toml` with an intentional public surface.
+3. `cd` into the module directory (folder with `.py` + `pyproject.toml`) — or keep it as `--modules`
+   path from the parent.
+4. Download `gg` for this CPU: **Windows** `iwr grft.dev/get/gg | iex` · **macOS/Linux**
+   `curl -fsSL grft.dev/get/gg | sh`.
+5. Run: `.\gg.exe --modules ./` (or `./gg --modules ./energy-service/`). For a **second+** service,
+   pick free ports (`--port`, `--http2Port`, …) so instances don't collide.
+6. Poll `http://localhost:<port>/pypi` until 200 for the install command.
+
+### Workflow (Docker-hosted) — [VERIFIED]
+Use this path only when the user chose containers (or already has Docker hosting in the project).
+The gateway reads your module directory and exposes public methods.
 
 1. Design contract (**`@staticmethod`** / module funcs, type-hinted, primitive/list DTOs; instance only
    if truly stateful).

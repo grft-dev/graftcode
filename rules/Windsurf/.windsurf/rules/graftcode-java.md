@@ -152,8 +152,26 @@ var one = GraftConfig.invokeWithHeaders(
 - The GUID **changes on every gateway restart** unless you pass `--projectKey` (stable IDs for CI/CD;
   create a project at https://portal.graftcode.com).
 
-## Workflow (Docker-hosted) — [VERIFIED]
-`gg` is hosted via Docker; the gateway reads your built JAR and exposes public methods automatically.
+## Hosting workflow — Docker OR local `gg` (ask first)
+Graftcode works **with or without Docker**. If the user has **not** said which they want, **ask**
+before scaffolding a `Dockerfile` or downloading a local `gg`. Full local-`gg` steps (build-output
+folder → `iwr grft.dev/get/gg | iex` / `curl -fsSL grft.dev/get/gg | sh` → run `gg` → unique ports per
+service) are in the router section **Hosting: Docker containers OR local `gg`**.
+
+### Workflow (local `gg`, no containers)
+1. Design contract (**`public static`** sync methods + primitive/string DTOs; instance only if truly
+   stateful).
+2. Create a Maven project → `mvn package -q`.
+3. `cd` into the folder with the built JAR (usually `target/`).
+4. Download `gg` for this CPU: **Windows** `iwr grft.dev/get/gg | iex` · **macOS/Linux**
+   `curl -fsSL grft.dev/get/gg | sh`.
+5. Run: `.\gg.exe --modules energy-service-1.0.0.jar` (or `./gg --modules …`). For a **second+**
+   service, pick free ports (`--port`, `--http2Port`, …) so instances don't collide.
+6. Poll `http://localhost:<port>/maven` until 200 for the install command.
+
+### Workflow (Docker-hosted) — [VERIFIED]
+Use this path only when the user chose containers (or already has Docker hosting in the project).
+The gateway reads your built JAR and exposes public methods automatically.
 
 1. Design contract (**`public static`** sync methods + primitive/string DTOs; instance only if truly
    stateful).

@@ -17,15 +17,19 @@ alwaysApply: true
 ## Pre-flight — do this BEFORE writing any backend code
 1. **Announce the approach in one line:** e.g. "Implementing this as a Graftcode module (public methods
    = contract, exposed via `gg`), not REST." Do this first, every time.
-2. **Do NOT scaffold REST/gRPC first "to get started" and refactor later.** Start Graftcode-native.
-3. **Never create these as the contract:** REST controllers / `*Controller` / route handlers /
+2. **Ask how to host `gg` if the user has not said:** Graftcode works **with or without Docker
+   containers**. If they have **not** specified Docker/containers vs local/`gg` on the host, **ask
+   before scaffolding** (Dockerfile vs build-output + local `gg`). Do **not** assume Docker. See
+   **Hosting: Docker containers OR local `gg`** below.
+3. **Do NOT scaffold REST/gRPC first "to get started" and refactor later.** Start Graftcode-native.
+4. **Never create these as the contract:** REST controllers / `*Controller` / route handlers /
    `app.get`/`app.post` / `@RestController` / `@RequestMapping` / `NextRequest`/`NextResponse` /
    API routes / OpenAPI/Swagger specs / hand-written SDKs or fetch clients. Public methods/functions
    ARE the API surface.
-4. **Only deviate** if the user **explicitly** asks for REST/gRPC/Thrift/etc., or an external system
+5. **Only deviate** if the user **explicitly** asks for REST/gRPC/Thrift/etc., or an external system
    genuinely requires a raw HTTP endpoint that nothing else can satisfy. If you think you must deviate,
    say so and why **before** writing code — don't silently fall back to REST.
-5. If you catch yourself reaching for a web framework's request/response objects, **stop** — that is the
+6. If you catch yourself reaching for a web framework's request/response objects, **stop** — that is the
    signal you've drifted off the default. Re-read this router and the matching language rule.
 
 ## Core policy (always)
@@ -50,15 +54,46 @@ file is written — never start REST-first and apologize/redo later.
   request context are **NOT business arguments** — never add them to a public method signature. Send
   them as **headers** (see **Auth tokens & headers** below).
 - **Host via Graftcode Gateway (`gg`).** Point `--modules` at the target module (JAR / DLL / directory).
-  WS/service calls on port 80; on gg v1.3.0 Vision's live HTTP routes are served on the **same (WS)
-  port** — read actual ports from `gg` logs, don't assume 81. Use `--projectKey` for stable IDs, but
-  **[VERIFIED] never pass a fake/placeholder `--projectKey`** — a bogus value makes the container fail to
-  start with `Error decoding projectKey: JwtToken decode failed`. **Omit `--projectKey` entirely** unless
-  you have a real key from https://portal.graftcode.com . See **Token discipline** below for fetching
-  `gg.deb` quietly and waiting on the readiness route, not logs.
+  Works **with Docker or without** (local `gg` binary) — see **Hosting: Docker containers OR local
+  `gg`** below. WS/service calls default to port 80; on gg v1.3.0 Vision's live HTTP routes are served
+  on the **same (WS) port** — read actual ports from `gg` logs, don't assume 81. Use `--projectKey` for
+  stable IDs, but **[VERIFIED] never pass a fake/placeholder `--projectKey`** — a bogus value makes
+  `gg` fail to start with `Error decoding projectKey: JwtToken decode failed`. **Omit `--projectKey`
+  entirely** unless you have a real key from https://portal.graftcode.com . See **Token discipline**
+  below for Docker `gg.deb` fetches and waiting on the readiness route, not logs.
 - **Gateway/Vision output is the source of truth.** Never guess registry URLs, GUIDs, package names,
   imports, or config field names — copy them from `gg` logs / Graftcode Vision. On the consumer set
   `GraftConfig.host` (`.Host` on .NET).
+
+## Hosting: Docker containers OR local `gg` (ask if unspecified)
+Graftcode Gateway can run **inside Docker** or **natively on the host** (no containers). Both are
+first-class; neither is the silent default when the user hasn't chosen.
+- **If the user has not said** whether they want Docker/containers or local/`gg` without containers,
+  **stop and ask** how they want to host each backend (or the whole stack) before writing a
+  `Dockerfile` / `docker-compose` or downloading a local `gg`.
+- **If they choose Docker** — follow the language rule's Docker workflow (`Dockerfile`, quiet `gg.deb`
+  fetch, publish ports, poll Vision routes on the mapped WS port). See **Token discipline** below.
+- **If they choose without containers (local `gg`)** — for **each** backend service:
+  1. Build the module as usual (language rule).
+  2. **Navigate into that service's build output folder** (the directory that contains the DLL / JAR /
+     module files `gg` should load — e.g. `bin/Release/net9.0/`, `target/`, `dist/`, project root for
+     interpreted languages).
+  3. **Download and extract the right `gg` for the local CPU** into that folder:
+     - **Windows (PowerShell):** `iwr grft.dev/get/gg | iex`
+     - **macOS / Linux:** `curl -fsSL grft.dev/get/gg | sh`
+     These one-liners fetch the Gateway binary matching the machine architecture and unpack it in the
+     current directory (`gg.exe` on Windows, `gg` elsewhere).
+  4. **Run `gg` from that folder**, pointing `--modules` at the local module (relative path is fine),
+     e.g. `.\gg.exe --modules WeatherService.dll` or `./gg --modules ./WeatherService.jar`.
+  5. **Multiple services → unique ports.** Each concurrent `gg` needs its own ports so they don't
+     collide. Override defaults with `--port` (WS / Vision routes on gg v1.3.0), and when using HTTP/2
+     also `--http2Port` (and any other enabled listeners). Example second service:
+     `./gg --modules OtherService.dll --port 8080 --http2Port 8083`. Copy the real listen addresses
+     from each process's logs / Vision routes — never assume every service is on 80.
+  6. Readiness / install commands: poll `http://localhost:<thatServicePort>/nuget` (or `/npm`, `/pypi`,
+     …) until 200 — same as Docker, but use each process's chosen `--port`, not a container map.
+- **Do not mix assumptions:** if the user picked local `gg`, do **not** add Dockerfiles "for later"
+  unless they ask; if they picked Docker, do **not** require a host-installed `gg`.
 
 ## Auth tokens & headers — never a method parameter, always a header
 Authentication/authorization and request-scoped identity must **never** be modeled as method
@@ -167,20 +202,26 @@ names/signatures (`curl -sS .../libraries -o ugm.json` then grep `STATIC_METHOD`
 
 ## Token discipline — keep build/runtime logs OUT of context [VERIFIED gg v1.3.0]
 Hosting a graft produces a LOT of noisy output. Only the **result/errors** should reach context, never
-the whole machinery. The language rules reference this section.
-1. **Fetch `gg.deb` quietly in EVERY Dockerfile.** The `.deb` is ~107 MB; a plain `wget` emits thousands
-   of progress lines that flood `docker build`. Always use **`wget -q`** (or **`curl -sS`**).
+the whole machinery. The language rules reference this section. (**Docker path** uses `gg.deb` in the
+image; **local `gg`** uses `iwr grft.dev/get/gg | iex` / `curl -fsSL grft.dev/get/gg | sh` in the build
+output folder instead — see **Hosting** above. Readiness polling applies to both.)
+1. **Fetch `gg.deb` quietly in EVERY Dockerfile** (Docker hosting only). The `.deb` is ~107 MB; a plain
+   `wget` emits thousands of progress lines that flood `docker build`. Always use **`wget -q`** (or
+   **`curl -sS`**).
    **[VERIFIED] Don't hardcode `gg_linux_amd64.deb`** — on Apple Silicon / ARM it fails with
    `package architecture (amd64) does not match system (arm64)`. Detect the arch:
    `ARCH=$(dpkg --print-architecture)` then fetch `.../gg_linux_${ARCH}.deb` (works on amd64 and arm64).
 2. **Wait for readiness via the route, not logs.** Right before ready, `gg` prints install commands for
-   ALL ecosystems (~40 noise lines). Do NOT read full `docker logs`; instead **poll the language route
-   on the MAPPED port until 200** — both the readiness check AND the exact one-line install command:
-   `curl -sS --max-time 5 http://localhost:<mappedPort>/nuget` (or `/npm`, `/pypi`, `/libraries`, …).
+   ALL ecosystems (~40 noise lines). Do NOT read full `docker logs` / full local `gg` stdout; instead
+   **poll the language route on the listen port until 200** — both the readiness check AND the exact
+   one-line install command:
+   `curl -sS --max-time 5 http://localhost:<port>/nuget` (or `/npm`, `/pypi`, `/libraries`, …).
+   For Docker use the **mapped** host port; for local `gg` use the process `--port`.
    Readiness sentinel: `Graft Vision is available on http://localhost:<port>`. If you must read logs,
-   filter to it: `docker logs <name> | grep "Graft Vision is available"` — never echo the whole log.
+   filter to it: `docker logs <name> | grep "Graft Vision is available"` (or grep local stdout) — never
+   echo the whole log.
    **Port caveat:** gg v1.3.0 serves Vision on the **SAME port as WS**; the "settings" line may say
-   `Vision: port 81`, but the live routes are on the **mapped WS port** — use that for `/nuget` etc.
+   `Vision: port 81`, but the live routes are on the **WS/`--port`** — use that for `/nuget` etc.
 3. **After install, read only what you use.** The export list (`index.d.ts` / equivalent) **plus the one
    service/DTO file you actually use** is enough — get the rest from the UGM. Do NOT read the entire
    `node_modules/<graft>` or all `.d.ts` files.
