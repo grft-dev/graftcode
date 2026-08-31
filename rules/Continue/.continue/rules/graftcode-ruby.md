@@ -153,10 +153,28 @@ one = GraftConfig.invoke_with_headers(
 - The GUID **changes on every gateway restart** unless you pass `--projectKey` (stable IDs for CI/CD;
   create a project at https://portal.graftcode.com).
 
-## Workflow (Docker-hosted) — [INFERRED]
-`gg` is hosted via Docker; the gateway introspects your Ruby classes and exposes public methods.
-Because there is no published Ruby Quick Start, **verify the image, module path, and `CMD` against `gg`
-output**.
+## Hosting workflow — Docker OR local `gg` (ask first)
+Graftcode works **with or without Docker**. If the user has **not** said which they want, **ask**
+before scaffolding a `Dockerfile` or downloading a local `gg`. Full local-`gg` steps (module dir →
+`iwr grft.dev/get/gg | iex` / `curl -fsSL grft.dev/get/gg | sh` → run `gg` → unique ports per service)
+are in the router section **Hosting: Docker containers OR local `gg`**.
+
+### Workflow (local `gg`, no containers)
+1. Design contract (**`def self.method`** class methods + primitive/string DTOs + plain arrays;
+   instance only if truly stateful).
+2. Create the Ruby class file(s) (+ `bundle install` if needed).
+3. `cd` into the module directory (or parent) that you will pass to `--modules`.
+4. Download `gg` for this CPU: **Windows** `iwr grft.dev/get/gg | iex` · **macOS/Linux**
+   `curl -fsSL grft.dev/get/gg | sh`.
+5. Run: `.\gg.exe --runtime ruby --modules ./` (or `./gg --runtime ruby --modules ./energy-service/`).
+   For a **second+** service, pick free ports (`--port`, `--http2Port`, …) so instances don't collide.
+6. Poll the Vision language route (e.g. `/gem`) on that port until 200 for the install command.
+   Verify flags/path against `gg` output — Ruby Quick Start may lag docs.
+
+### Workflow (Docker-hosted) — [INFERRED]
+Use this path only when the user chose containers (or already has Docker hosting in the project).
+The gateway introspects your Ruby classes and exposes public methods. Because there is no published
+Ruby Quick Start, **verify the image, module path, and `CMD` against `gg` output**.
 
 1. Design contract (**`def self.method`** class methods + primitive/string DTOs + plain arrays;
    instance only if truly stateful).
