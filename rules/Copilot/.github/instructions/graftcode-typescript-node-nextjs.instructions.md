@@ -341,6 +341,24 @@ are in the router section **Hosting: Docker containers OR local `gg`**.
    port, or the local `--port` you chose. See **Token discipline** in the router.) Then consume from
    the target app.
 
+### Default while building — `--graftOnly` (no Vision, no servers)
+While you're writing and iterating (scaffolding the service, changing the contract, regenerating the
+consumer graft), run `gg` with **`--graftOnly`**: it analyzes the module, prints the IDL + `npm install`
+command, and exits without starting WS/Vision/HTTP2. **Use steps 4–5 above only when the app must
+actually serve calls** — the browser/Vite app or another service calling it, an end-to-end run, or
+deployment. (A browser consumer always needs a hosted gateway; an in-process `inmemory` consumer never
+does.)
+```bash
+gg --runtime nodejs --modules ./services/pricing --graftOnly   # dir with package.json + built dist/
+```
+- One producer module per invocation; the `--modules` directory must contain `package.json` and the
+  **built** output the entry point resolves to (build TS first).
+- There is **no `/npm` route to poll** in this mode — redirect to a file and read only the install line
+  (`grep grft.dev graft.log`). Install each graft with **its own `--registry`** as usual, and restart the
+  dev server after reinstalling.
+- The GUID still rotates per run without a real `--projectKey`. Don't mix `--graftOnly` with hosting
+  flags; details in the router section **Generating grafts vs hosting**.
+
 ## Consumer workflow (call a Graft)
 1. Open the relevant Gateway/Vision output; copy the generated **npm install** command; install it.
 2. Import the generated class/method **exactly** as shown; call it like local code.
@@ -521,7 +539,9 @@ into a plain object — reuse the generated type and bind the Graft object direc
 don't `await` field accessors (`get_X()` / `set_X()`); they return values synchronously (typed
 `T | Promise<T>`) — narrow with a cast `as T` in JSX, and only `await` the top-level service call.
 Don't create a throwaway probe/test project to learn the contract or check connectivity (read
-`/libraries`, verify in the real project). Don't run a plain `npm install` that resolves `@graft` from
+`/libraries`, verify in the real project). Don't start a gateway (Vision + servers) while
+building/iterating — `gg --runtime nodejs --modules <dir> --graftOnly` is the default; host only when the
+app must actually serve calls (a browser consumer always needs one, `inmemory` never does). Don't run a plain `npm install` that resolves `@graft` from
 npmjs after installing each graft from its own `--registry` (reinstall from the lockfile instead).
 Don't accept JWTs/`Authorization`/`X-Api-Key`/session/tenant tokens as method parameters — read them
 server-side from `RequestContext.current.getHeaders()` and send them client-side via

@@ -148,6 +148,20 @@ before scaffolding a `Dockerfile` or downloading a local `gg`. Full local-`gg` s
 folder → `iwr grft.dev/get/gg | iex` / `curl -fsSL grft.dev/get/gg | sh` → run `gg` → unique ports per
 service) are in the router section **Hosting: Docker containers OR local `gg`**.
 
+### Default while building — `--graftOnly` (no Vision, no servers)
+While you're writing and iterating (scaffolding the module, changing the contract, regenerating the
+consumer graft), run `gg` with **`--graftOnly`**: it analyzes the JAR, prints the IDL + Maven
+coordinates/install command, and exits without starting WS/Vision/HTTP2. **Use the hosting workflows
+below only when the app must actually serve calls** — an end-to-end run, a frontend/another service
+calling it, or deployment.
+```bash
+mvn package -q
+gg --modules target/energy-service-1.0.0.jar --graftOnly    # one module per run
+```
+There is **no `/maven` route to poll** in this mode — redirect to a file and read only the install line
+(`grep grft.dev graft.log`). The GUID still rotates per run without a real `--projectKey`. Don't mix
+`--graftOnly` with hosting flags; details in the router section **Generating grafts vs hosting**.
+
 ### Workflow (local `gg`, no containers)
 1. Design contract (**`@JvmStatic`** companion / top-level sync funcs + primitive/string DTOs; instance
    only if truly stateful).
@@ -268,6 +282,8 @@ println(price)
   a stateful contract without warning about single-instance pinning / session stickiness and handling
   the object no longer existing on the callee.
 - Don't invent registries/GUIDs/coordinates/versions. Don't skip `GraftConfig.host` on the consumer.
+- Don't start a gateway (Vision + servers) while building/iterating — `gg --modules <jar> --graftOnly`
+  is the default; host only when the app must actually serve calls.
 - Don't nest consumer/test projects inside the service module.
 - Don't accept JWTs/`Authorization`/`X-Api-Key`/session/tenant tokens as method parameters — read them
   server-side from `RequestContext.current().getHeaders()` and send them client-side via

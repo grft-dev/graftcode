@@ -149,6 +149,19 @@ before scaffolding a `Dockerfile` or downloading a local `gg`. Full local-`gg` s
 `iwr grft.dev/get/gg | iex` / `curl -fsSL grft.dev/get/gg | sh` → run `gg` → unique ports per service)
 are in the router section **Hosting: Docker containers OR local `gg`**.
 
+### Default while building — `--graftOnly` (no Vision, no servers)
+While you're writing and iterating (scaffolding the module, changing the contract, regenerating the
+consumer graft), run `gg` with **`--graftOnly`**: it analyzes the module directory, prints the IDL + pip
+install command, and exits without starting WS/Vision/HTTP2. **Use the hosting workflows below only when
+the app must actually serve calls** — an end-to-end run, a frontend/another service calling it, or
+deployment.
+```bash
+gg --runtime python --modules ./energy-service/ --graftOnly    # one module dir per run
+```
+There is **no `/pypi` route to poll** in this mode — redirect to a file and read only the install line
+(`grep grft.dev graft.log`). The GUID still rotates per run without a real `--projectKey`. Don't mix
+`--graftOnly` with hosting flags; details in the router section **Generating grafts vs hosting**.
+
 ### Workflow (local `gg`, no containers)
 1. Design contract (**`@staticmethod`** / module funcs, type-hinted, primitive/list DTOs; instance only
    if truly stateful).
@@ -279,6 +292,8 @@ os._exit(0)
   don't ship a stateful contract without warning about single-instance pinning / session stickiness and
   handling the object no longer existing on the callee.
 - Don't invent registries/GUIDs/package names/versions. Don't skip `GraftConfig.host` on the consumer.
+- Don't start a gateway (Vision + servers) while building/iterating — `gg --runtime python --modules
+  <dir> --graftOnly` is the default; host only when the app must actually serve calls.
 - Don't accept JWTs/`Authorization`/`X-Api-Key`/session/tenant tokens as method parameters — read them
   server-side from `RequestContext.current().get_headers()` and send them client-side via
   `GraftConfig.set_headers(...)` / `GraftConfig.invoke_with_headers(...)` (`graftcode-context`).

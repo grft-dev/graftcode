@@ -11,9 +11,11 @@
 ## Pre-flight — do this BEFORE writing any backend code
 1. **Announce the approach in one line:** e.g. "Implementing this as a Graftcode module (public methods
    = contract, exposed via `gg`), not REST." Do this first, every time.
-2. **Ask how to host `gg` if the user has not said:** Graftcode works **with or without Docker
-   containers**. If they have **not** specified Docker/containers vs local/`gg` on the host, **ask
-   before scaffolding** (Dockerfile vs build-output + local `gg`). Do **not** assume Docker. See
+2. **Don't host anything yet — build with `--graftOnly`.** While you are writing and iterating on the
+   project, generate grafts with `gg … --graftOnly` (no Vision, no servers) and stand up a real gateway
+   only when the app actually has to serve calls. **When it does** and the user has not said whether
+   they want Docker/containers or local/`gg` on the host, **ask before scaffolding** (Dockerfile vs
+   build-output + local `gg`). Do **not** assume Docker. See **Generating grafts vs hosting** and
    **Hosting: Docker containers OR local `gg`** below.
 3. **Do NOT scaffold REST/gRPC first "to get started" and refactor later.** Start Graftcode-native.
 4. **Never create these as the contract:** REST controllers / `*Controller` / route handlers /
@@ -55,11 +57,55 @@ file is written — never start REST-first and apologize/redo later.
   `gg` fail to start with `Error decoding projectKey: JwtToken decode failed`. **Omit `--projectKey`
   entirely** unless you have a real key from https://portal.graftcode.com . See **Token discipline**
   below for Docker `gg.deb` fetches and waiting on the readiness route, not logs.
+- **While building, add `--graftOnly` — that is the default.** It generates the graft and exits without
+  starting Vision or any server (faster, lighter). Host a real gateway only when the app must actually
+  serve calls; see **Generating grafts vs hosting** below.
 - **Gateway/Vision output is the source of truth.** Never guess registry URLs, GUIDs, package names,
   imports, or config field names — copy them from `gg` logs / Graftcode Vision. On the consumer set
   `GraftConfig.host` (`.Host` on .NET).
 
+## Generating grafts vs hosting — `--graftOnly` is the DEFAULT while building
+`--graftOnly` (default `false`) makes `gg` **analyze the modules, print the generated IDL / discovery
+payload, and exit** — it starts **no** WebSocket, Vision, HTTP/2 or TCP server, so it is much lighter and
+quicker than booting a full gateway. Flag reference: https://github.com/grft-dev/graftcode-gateway .
+
+**Decision rule — apply it every time you reach for `gg`:**
+- **Building / iterating → `--graftOnly`. This is the default, and it covers almost everything you do
+  while writing the project.** Scaffolding a service, adding or renaming a public method, changing a DTO,
+  regenerating consumer grafts, wiring up call sites: none of that needs a *callable* service, only
+  up-to-date generated types. Don't start a gateway to "have it running", and don't start one to read the
+  contract.
+- **Running the application → full gateway, no `--graftOnly`.** Start the servers only when calls must
+  really travel: the user runs, demos or end-to-end tests the app; a frontend calls the backend; one
+  service calls another over `ws://`/`wss://`/`https://…/h2`/TCP; or you deploy. Then use the hosting path
+  the user chose plus the flags the language rule lists (`--http2Server=1`, `--corsAllowedOrigins`, …).
+- **In-process (`inmemory`) consumers need no gateway at all** — not even at run time, because the module
+  is loaded locally. `--graftOnly` covers their whole loop; they still need the generated graft, since
+  call sites use its types/methods. See the monolith section.
+- **Never combine the two** "to be safe" — generating and hosting are different jobs. If you already have
+  a gateway running for the app, you still regenerate grafts with a separate `--graftOnly` run.
+- **One producer module per invocation.** Copy `--runtime` and `--modules` from the language rule
+  (compiled DLL / JAR / module or package directory) — never guess them:
+```bash
+gg --modules WeatherService.dll --graftOnly
+gg --runtime nodejs --modules ./services/pricing --graftOnly
+```
+- **There is no readiness route to poll here.** Without servers there is no `/nuget`, `/npm`, `/pypi` or
+  `/libraries` to `curl` — the process prints its output and exits. Redirect it to a file and read only
+  the install line: `gg --modules <module> --graftOnly > graft.log 2>&1` then `grep grft.dev graft.log`.
+  Never echo the whole output (see **Token discipline**).
+- **The registry GUID still rotates on every run** unless you pass a real `--projectKey`. Persist the
+  fresh one-line install command after each generation and never reuse an old GUID. Install **one**
+  graft package **per registry URL** — resolving two grafts from one registry in a single install can 500.
+- **After a contract change:** rebuild the producer → rerun `--graftOnly` for **that** module → reinstall
+  the graft package in every consumer. Hand-editing an installed graft (`node_modules/@graft/*` and
+  equivalents) is never allowed.
+- If the repo already wraps this in a script (e.g. `npm run graft:gen`), use the script rather than a raw
+  `gg` invocation so every service is regenerated the same way.
+
 ## Hosting: Docker containers OR local `gg` (ask if unspecified)
+**This section applies once the app actually has to serve calls** — while building, generate grafts with
+`--graftOnly` (above) instead of hosting anything.
 Graftcode Gateway can run **inside Docker** or **natively on the host** (no containers). Both are
 first-class; neither is the silent default when the user hasn't chosen.
 - **If the user has not said** whether they want Docker/containers or local/`gg` without containers,
@@ -216,6 +262,8 @@ output folder instead — see **Hosting** above. Readiness polling applies to bo
    echo the whole log.
    **Port caveat:** gg v1.3.0 serves Vision on the **SAME port as WS**; the "settings" line may say
    `Vision: port 81`, but the live routes are on the **WS/`--port`** — use that for `/nuget` etc.
+   **`--graftOnly` runs have nothing to poll** (no servers, the process exits by itself): redirect the
+   run to a file and `grep grft.dev` for the install command instead.
 3. **After install, read only what you use.** The export list (`index.d.ts` / equivalent) **plus the one
    service/DTO file you actually use** is enough — get the rest from the UGM. Do NOT read the entire
    `node_modules/<graft>` or all `.d.ts` files.
@@ -447,6 +495,18 @@ before scaffolding a `Dockerfile` or downloading a local `gg`. Full local-`gg` s
 folder → `iwr grft.dev/get/gg | iex` / `curl -fsSL grft.dev/get/gg | sh` → run `gg` → unique ports per
 service) are in the router section **Hosting: Docker containers OR local `gg`**.
 
+### Default while building — `--graftOnly` (no Vision, no servers)
+While you're writing and iterating (scaffolding the library, changing the contract, regenerating the
+consumer graft), run `gg` with **`--graftOnly`**: it analyzes the DLL, prints the IDL + install command,
+and exits without starting WS/Vision/HTTP2. **Use the hosting workflows below only when the app must
+actually serve calls** — an end-to-end run, a frontend/another service calling it, or deployment.
+```bash
+gg --modules WeatherService.dll --graftOnly     # from the build-output folder; one module per run
+```
+There is **no `/nuget` route to poll** in this mode — redirect to a file and read only the install line
+(`grep grft.dev graft.log`). The GUID still rotates per run without a real `--projectKey`. Don't mix
+`--graftOnly` with hosting flags; details in the router section **Generating grafts vs hosting**.
+
 ### Workflow (local `gg`, no containers)
 1. Design contract (**`static`** sync methods + primitive/string DTOs; instance only if truly stateful).
 2. `dotnet new classlib -n WeatherService` → implement → `dotnet build <Project>.csproj -v q`.
@@ -659,6 +719,8 @@ graft packages resolve from grft.dev and everything else from nuget.org:
   clean Docker build with `NU1301`).
 - Don't hardcode the DTO's namespace (use `var`) or assume PascalCase fields (producer names, often
   snake_case, win). Don't hardcode Vision on port 81 (v1.3.0 shares the WS port).
+- Don't start a gateway (Vision + servers) while building/iterating — `gg --modules <Assembly>.dll
+  --graftOnly` is the default; host only when the app must actually serve calls.
 - Don't flood context: fetch `gg.deb` with `wget -q`, poll `/nuget` instead of reading full `docker
   logs`, don't paste the whole `/libraries` UGM, and redirect long build/restore output to a file
   (read only the tail/errors). See **Token discipline** in the router.
@@ -1007,6 +1069,24 @@ are in the router section **Hosting: Docker containers OR local `gg`**.
    port, or the local `--port` you chose. See **Token discipline** in the router.) Then consume from
    the target app.
 
+### Default while building — `--graftOnly` (no Vision, no servers)
+While you're writing and iterating (scaffolding the service, changing the contract, regenerating the
+consumer graft), run `gg` with **`--graftOnly`**: it analyzes the module, prints the IDL + `npm install`
+command, and exits without starting WS/Vision/HTTP2. **Use steps 4–5 above only when the app must
+actually serve calls** — the browser/Vite app or another service calling it, an end-to-end run, or
+deployment. (A browser consumer always needs a hosted gateway; an in-process `inmemory` consumer never
+does.)
+```bash
+gg --runtime nodejs --modules ./services/pricing --graftOnly   # dir with package.json + built dist/
+```
+- One producer module per invocation; the `--modules` directory must contain `package.json` and the
+  **built** output the entry point resolves to (build TS first).
+- There is **no `/npm` route to poll** in this mode — redirect to a file and read only the install line
+  (`grep grft.dev graft.log`). Install each graft with **its own `--registry`** as usual, and restart the
+  dev server after reinstalling.
+- The GUID still rotates per run without a real `--projectKey`. Don't mix `--graftOnly` with hosting
+  flags; details in the router section **Generating grafts vs hosting**.
+
 ## Consumer workflow (call a Graft)
 1. Open the relevant Gateway/Vision output; copy the generated **npm install** command; install it.
 2. Import the generated class/method **exactly** as shown; call it like local code.
@@ -1187,7 +1267,9 @@ into a plain object — reuse the generated type and bind the Graft object direc
 don't `await` field accessors (`get_X()` / `set_X()`); they return values synchronously (typed
 `T | Promise<T>`) — narrow with a cast `as T` in JSX, and only `await` the top-level service call.
 Don't create a throwaway probe/test project to learn the contract or check connectivity (read
-`/libraries`, verify in the real project). Don't run a plain `npm install` that resolves `@graft` from
+`/libraries`, verify in the real project). Don't start a gateway (Vision + servers) while
+building/iterating — `gg --runtime nodejs --modules <dir> --graftOnly` is the default; host only when the
+app must actually serve calls (a browser consumer always needs one, `inmemory` never does). Don't run a plain `npm install` that resolves `@graft` from
 npmjs after installing each graft from its own `--registry` (reinstall from the lockfile instead).
 Don't accept JWTs/`Authorization`/`X-Api-Key`/session/tenant tokens as method parameters — read them
 server-side from `RequestContext.current.getHeaders()` and send them client-side via
@@ -1352,6 +1434,20 @@ before scaffolding a `Dockerfile` or downloading a local `gg`. Full local-`gg` s
 folder → `iwr grft.dev/get/gg | iex` / `curl -fsSL grft.dev/get/gg | sh` → run `gg` → unique ports per
 service) are in the router section **Hosting: Docker containers OR local `gg`**.
 
+### Default while building — `--graftOnly` (no Vision, no servers)
+While you're writing and iterating (scaffolding the module, changing the contract, regenerating the
+consumer graft), run `gg` with **`--graftOnly`**: it analyzes the JAR, prints the IDL + Maven
+coordinates/install command, and exits without starting WS/Vision/HTTP2. **Use the hosting workflows
+below only when the app must actually serve calls** — an end-to-end run, a frontend/another service
+calling it, or deployment.
+```bash
+mvn package -q
+gg --modules target/energy-service-1.0.0.jar --graftOnly    # one module per run
+```
+There is **no `/maven` route to poll** in this mode — redirect to a file and read only the install line
+(`grep grft.dev graft.log`). The GUID still rotates per run without a real `--projectKey`. Don't mix
+`--graftOnly` with hosting flags; details in the router section **Generating grafts vs hosting**.
+
 ### Workflow (local `gg`, no containers)
 1. Design contract (**`public static`** sync methods + primitive/string DTOs; instance only if truly
    stateful).
@@ -1490,6 +1586,8 @@ public class Main {
   ship a stateful contract without warning about single-instance pinning / session stickiness and
   handling the object no longer existing on the callee.
 - Don't invent registries/GUIDs/coordinates/versions. Don't skip `GraftConfig.host` on the consumer.
+- Don't start a gateway (Vision + servers) while building/iterating — `gg --modules <jar> --graftOnly`
+  is the default; host only when the app must actually serve calls.
 - Don't nest consumer/test projects inside the service module.
 - Don't accept JWTs/`Authorization`/`X-Api-Key`/session/tenant tokens as method parameters — read them
   server-side from `RequestContext.current().getHeaders()` and send them client-side via
@@ -1650,6 +1748,20 @@ before scaffolding a `Dockerfile` or downloading a local `gg`. Full local-`gg` s
 folder → `iwr grft.dev/get/gg | iex` / `curl -fsSL grft.dev/get/gg | sh` → run `gg` → unique ports per
 service) are in the router section **Hosting: Docker containers OR local `gg`**.
 
+### Default while building — `--graftOnly` (no Vision, no servers)
+While you're writing and iterating (scaffolding the module, changing the contract, regenerating the
+consumer graft), run `gg` with **`--graftOnly`**: it analyzes the JAR, prints the IDL + Maven
+coordinates/install command, and exits without starting WS/Vision/HTTP2. **Use the hosting workflows
+below only when the app must actually serve calls** — an end-to-end run, a frontend/another service
+calling it, or deployment.
+```bash
+mvn package -q
+gg --modules target/energy-service-1.0.0.jar --graftOnly    # one module per run
+```
+There is **no `/maven` route to poll** in this mode — redirect to a file and read only the install line
+(`grep grft.dev graft.log`). The GUID still rotates per run without a real `--projectKey`. Don't mix
+`--graftOnly` with hosting flags; details in the router section **Generating grafts vs hosting**.
+
 ### Workflow (local `gg`, no containers)
 1. Design contract (**`@JvmStatic`** companion / top-level sync funcs + primitive/string DTOs; instance
    only if truly stateful).
@@ -1770,6 +1882,8 @@ println(price)
   a stateful contract without warning about single-instance pinning / session stickiness and handling
   the object no longer existing on the callee.
 - Don't invent registries/GUIDs/coordinates/versions. Don't skip `GraftConfig.host` on the consumer.
+- Don't start a gateway (Vision + servers) while building/iterating — `gg --modules <jar> --graftOnly`
+  is the default; host only when the app must actually serve calls.
 - Don't nest consumer/test projects inside the service module.
 - Don't accept JWTs/`Authorization`/`X-Api-Key`/session/tenant tokens as method parameters — read them
   server-side from `RequestContext.current().getHeaders()` and send them client-side via
@@ -1925,6 +2039,19 @@ before scaffolding a `Dockerfile` or downloading a local `gg`. Full local-`gg` s
 `iwr grft.dev/get/gg | iex` / `curl -fsSL grft.dev/get/gg | sh` → run `gg` → unique ports per service)
 are in the router section **Hosting: Docker containers OR local `gg`**.
 
+### Default while building — `--graftOnly` (no Vision, no servers)
+While you're writing and iterating (scaffolding the module, changing the contract, regenerating the
+consumer graft), run `gg` with **`--graftOnly`**: it analyzes the module directory, prints the IDL + pip
+install command, and exits without starting WS/Vision/HTTP2. **Use the hosting workflows below only when
+the app must actually serve calls** — an end-to-end run, a frontend/another service calling it, or
+deployment.
+```bash
+gg --runtime python --modules ./energy-service/ --graftOnly    # one module dir per run
+```
+There is **no `/pypi` route to poll** in this mode — redirect to a file and read only the install line
+(`grep grft.dev graft.log`). The GUID still rotates per run without a real `--projectKey`. Don't mix
+`--graftOnly` with hosting flags; details in the router section **Generating grafts vs hosting**.
+
 ### Workflow (local `gg`, no containers)
 1. Design contract (**`@staticmethod`** / module funcs, type-hinted, primitive/list DTOs; instance only
    if truly stateful).
@@ -2055,6 +2182,8 @@ os._exit(0)
   don't ship a stateful contract without warning about single-instance pinning / session stickiness and
   handling the object no longer existing on the callee.
 - Don't invent registries/GUIDs/package names/versions. Don't skip `GraftConfig.host` on the consumer.
+- Don't start a gateway (Vision + servers) while building/iterating — `gg --runtime python --modules
+  <dir> --graftOnly` is the default; host only when the app must actually serve calls.
 - Don't accept JWTs/`Authorization`/`X-Api-Key`/session/tenant tokens as method parameters — read them
   server-side from `RequestContext.current().get_headers()` and send them client-side via
   `GraftConfig.set_headers(...)` / `GraftConfig.invoke_with_headers(...)` (`graftcode-context`).
@@ -2220,6 +2349,19 @@ before scaffolding a `Dockerfile` or downloading a local `gg`. Full local-`gg` s
 `iwr grft.dev/get/gg | iex` / `curl -fsSL grft.dev/get/gg | sh` → run `gg` → unique ports per service)
 are in the router section **Hosting: Docker containers OR local `gg`**.
 
+### Default while building — `--graftOnly` (no Vision, no servers)
+While you're writing and iterating (scaffolding the classes, changing the contract, regenerating the
+consumer graft), run `gg` with **`--graftOnly`**: it analyzes the class directory, prints the IDL +
+install command, and exits without starting WS/Vision/HTTP2. **Use the hosting workflows below only when
+the app must actually serve calls** — an end-to-end run, a frontend/another service calling it, or
+deployment.
+```bash
+gg --runtime php --modules ./energy-service/ --graftOnly    # one module dir per run
+```
+There is **no `/composer` route to poll** in this mode — redirect to a file and read only the install
+line (`grep grft.dev graft.log`). The GUID still rotates per run without a real `--projectKey`. Don't mix
+`--graftOnly` with hosting flags; details in the router section **Generating grafts vs hosting**.
+
 ### Workflow (local `gg`, no containers)
 1. Design contract (**`public static`** typed methods + primitive/string DTOs + list arrays; instance
    only if truly stateful).
@@ -2342,6 +2484,8 @@ echo $price;
   handling the object no longer existing on the callee.
 - Don't invent registries/GUIDs/package names/versions, the Dockerfile image, or the module path —
   confirm everything against `gg` output and Vision. Don't skip the `GraftConfig` host on the consumer.
+- Don't start a gateway (Vision + servers) while building/iterating — `gg --runtime php --modules <dir>
+  --graftOnly` is the default; host only when the app must actually serve calls.
 - Don't accept JWTs/`Authorization`/`X-Api-Key`/session/tenant tokens as method parameters — read them
   server-side from `RequestContext::current()->getHeaders()` and send them client-side via
   `GraftConfig::setHeaders(...)` / `GraftConfig::invokeWithHeaders(...)` (`graftcode/graftcode-context`).
@@ -2504,6 +2648,19 @@ before scaffolding a `Dockerfile` or downloading a local `gg`. Full local-`gg` s
 `iwr grft.dev/get/gg | iex` / `curl -fsSL grft.dev/get/gg | sh` → run `gg` → unique ports per service)
 are in the router section **Hosting: Docker containers OR local `gg`**.
 
+### Default while building — `--graftOnly` (no Vision, no servers)
+While you're writing and iterating (scaffolding the classes, changing the contract, regenerating the
+consumer graft), run `gg` with **`--graftOnly`**: it analyzes the class directory, prints the IDL + gem
+install command, and exits without starting WS/Vision/HTTP2. **Use the hosting workflows below only when
+the app must actually serve calls** — an end-to-end run, a frontend/another service calling it, or
+deployment.
+```bash
+gg --runtime ruby --modules ./energy-service/ --graftOnly    # one module dir per run
+```
+There is **no `/gem` route to poll** in this mode — redirect to a file and read only the install line
+(`grep grft.dev graft.log`). The GUID still rotates per run without a real `--projectKey`. Don't mix
+`--graftOnly` with hosting flags; details in the router section **Generating grafts vs hosting**.
+
 ### Workflow (local `gg`, no containers)
 1. Design contract (**`def self.method`** class methods + primitive/string DTOs + plain arrays;
    instance only if truly stateful).
@@ -2626,6 +2783,8 @@ puts price
   handling the object no longer existing on the callee.
 - Don't invent registries/GUIDs/package names/versions, the Dockerfile image, or the module path —
   confirm everything against `gg` output and Vision. Don't skip the `GraftConfig` host on the consumer.
+- Don't start a gateway (Vision + servers) while building/iterating — `gg --runtime ruby --modules <dir>
+  --graftOnly` is the default; host only when the app must actually serve calls.
 - Don't accept JWTs/`Authorization`/`X-Api-Key`/session/tenant tokens as method parameters — read them
   server-side from `RequestContext.current.get_headers` and send them client-side via
   `GraftConfig.set_headers(...)` / `GraftConfig.invoke_with_headers(...)` (`graftcode-context`).

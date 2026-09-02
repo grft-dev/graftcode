@@ -169,6 +169,18 @@ before scaffolding a `Dockerfile` or downloading a local `gg`. Full local-`gg` s
 folder → `iwr grft.dev/get/gg | iex` / `curl -fsSL grft.dev/get/gg | sh` → run `gg` → unique ports per
 service) are in the router section **Hosting: Docker containers OR local `gg`**.
 
+### Default while building — `--graftOnly` (no Vision, no servers)
+While you're writing and iterating (scaffolding the library, changing the contract, regenerating the
+consumer graft), run `gg` with **`--graftOnly`**: it analyzes the DLL, prints the IDL + install command,
+and exits without starting WS/Vision/HTTP2. **Use the hosting workflows below only when the app must
+actually serve calls** — an end-to-end run, a frontend/another service calling it, or deployment.
+```bash
+gg --modules WeatherService.dll --graftOnly     # from the build-output folder; one module per run
+```
+There is **no `/nuget` route to poll** in this mode — redirect to a file and read only the install line
+(`grep grft.dev graft.log`). The GUID still rotates per run without a real `--projectKey`. Don't mix
+`--graftOnly` with hosting flags; details in the router section **Generating grafts vs hosting**.
+
 ### Workflow (local `gg`, no containers)
 1. Design contract (**`static`** sync methods + primitive/string DTOs; instance only if truly stateful).
 2. `dotnet new classlib -n WeatherService` → implement → `dotnet build <Project>.csproj -v q`.
@@ -381,6 +393,8 @@ graft packages resolve from grft.dev and everything else from nuget.org:
   clean Docker build with `NU1301`).
 - Don't hardcode the DTO's namespace (use `var`) or assume PascalCase fields (producer names, often
   snake_case, win). Don't hardcode Vision on port 81 (v1.3.0 shares the WS port).
+- Don't start a gateway (Vision + servers) while building/iterating — `gg --modules <Assembly>.dll
+  --graftOnly` is the default; host only when the app must actually serve calls.
 - Don't flood context: fetch `gg.deb` with `wget -q`, poll `/nuget` instead of reading full `docker
   logs`, don't paste the whole `/libraries` UGM, and redirect long build/restore output to a file
   (read only the tail/errors). See **Token discipline** in the router.
