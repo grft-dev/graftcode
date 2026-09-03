@@ -13,7 +13,7 @@ We are at **[WeAreDevelopers World Congress 2026](https://www.wearedevelopers.co
 Conference demo repositories:
 
 - [pladynski/wad-knowledge](https://github.com/pladynski/wad-knowledge) — simple rules and skills for AI
-- [pladynski/wad-speckit](https://github.com/grft-dev/wad-speckit) — advanced rules and specification sample
+- [pladynski/wad-speckit](https://github.com/pladynski/wad-speckit) — advanced rules and specification sample
 - [pladynski/wad-rest-demo](https://github.com/pladynski/wad-rest-demo) — sample distributed system created with REST
 - [pladynski/wad-graft-demo](https://github.com/pladynski/wad-graft-demo) — sample distributed system created with Graftcode
 
@@ -57,7 +57,7 @@ Access your remote services from web, mobile, and edge clients. Seamlessly conne
 
 Imagine a world where you can share business logic across any technology as easily as publishing a package to a public repository. With Graftcode, you simply write public methods, communicate errors through exceptions, and call them like local code.
 
-Graftcode eliminates the need for REST, gRPC, Thrift, or coupling your code to message buses and event systems. It reduces your codebase by up to 50%, dramatically improves AI-assisted development (lower token usage, higher efficiency, and simpler code reviews), and makes every backend immediately MCP-compatible for AI agents.
+Graftcode removes the need to hand-write REST, gRPC, or Thrift integration layers, or to couple your code to message buses and event systems. It reduces your codebase by up to 50%, dramatically improves AI-assisted development (lower token usage, higher efficiency, and simpler code reviews), and makes every backend immediately MCP-compatible for AI agents.
 
 It also enables true modular monoliths you can decompose and recombine modules at will, switch communication channels (WebSocket, HTTP/2, RabbitMQ, Kafka, Service Bus, SQS, Pub/Sub, etc.) without changing a single line of code, and build truly polyglot systems with zero integration overhead.
 
