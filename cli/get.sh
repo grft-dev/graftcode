@@ -14,45 +14,31 @@ RULES_RAW_BASE="https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/
 RULE_LANGS="dotnet java kotlin php python ruby typescript-node-nextjs"
 
 say() {
-  if [ -w /dev/tty ]; then
-    echo "$@" > /dev/tty
-  else
-    echo "$@"
-  fi
+  echo "$@"
 }
 
 say_no_newline() {
-  if [ -w /dev/tty ]; then
-    printf "%s" "$1" > /dev/tty
-  else
-    printf "%s" "$1"
-  fi
+  printf '%s' "$1"
+}
+
+grft_is_interactive_tty() {
+  [ -t 0 ] && [ -t 1 ]
 }
 
 show_intro() {
-  clear 2>/dev/null || true
-
-  if [ -w /dev/tty ]; then
-    cat > /dev/tty <<'EOF'
-   _____            __ _                 _
-  / ____|          / _| |               | |
- | |  __ _ __ __ _| |_| |_ ___ ___   __| | ___
- | | |_ | '__/ _` |  _| __/ __/ _ \ / _` |/ _ \
- | |__| | | | (_| | | | || (_| (_) | (_| |  __/
-  \_____|_|  \__,_|_|  \__\___\___/ \__,_|\___|
-
-EOF
-  else
-    cat <<'EOF'
-   _____            __ _                 _
-  / ____|          / _| |               | |
- | |  __ _ __ __ _| |_| |_ ___ ___   __| | ___
- | | |_ | '__/ _` |  _| __/ __/ _ \ / _` |/ _ \
- | |__| | | | (_| | | | || (_| (_) | (_| |  __/
-  \_____|_|  \__,_|_|  \__\___\___/ \__,_|\___|
-
-EOF
+  if grft_is_interactive_tty; then
+    clear 2>/dev/null || true
   fi
+
+  cat <<'EOF'
+   _____            __ _                 _
+  / ____|          / _| |               | |
+ | |  __ _ __ __ _| |_| |_ ___ ___   __| | ___
+ | | |_ | '__/ _` |  _| __/ __/ _ \ / _` |/ _ \
+ | |__| | | | (_| | | | || (_| (_) | (_| |  __/
+  \_____|_|  \__,_|_|  \__\___\___/ \__,_|\___|
+
+EOF
 
   say "Graftcode helps you generate AI code that integrates through Graftcode."
   say "It can reduce boilerplate, simplify PRs, and save up to 80% of tokens."
@@ -349,7 +335,7 @@ install_plugin_files() {
   if [ -z "$installed" ]; then
     say "Could not find $plugin_label plugin binaries inside archive."
     say "Extracted files:"
-    find "$extract_dir" -maxdepth 4 -type f | sed 's/^/ - /' > /dev/tty 2>/dev/null || true
+    find "$extract_dir" -maxdepth 4 -type f | sed 's/^/ - /'
     exit 1
   fi
 
@@ -394,7 +380,7 @@ install_plugin() {
     grep '"browser_download_url"' "$release_json" |
       sed 's/.*"browser_download_url": "\(.*\)".*/\1/' |
       grep -Ei "/${plugin_name}-" |
-      sed 's/^/ - /' > /dev/tty 2>/dev/null || true
+      sed 's/^/ - /'
     rm -f "$release_json"
     exit 1
   fi
@@ -634,7 +620,13 @@ run_interactive() {
 
 run_command() {
   if [ "$#" -eq 0 ]; then
-    run_interactive
+    if grft_is_interactive_tty; then
+      run_interactive
+    else
+      say "No interactive terminal — use non-interactive commands:"
+      show_help
+      exit 2
+    fi
     return 0
   fi
 
@@ -663,7 +655,13 @@ run_command() {
   esac
 
   if [ "$#" -eq 1 ]; then
-    run_interactive
+    if grft_is_interactive_tty; then
+      run_interactive
+    else
+      say "No interactive terminal — use non-interactive commands:"
+      show_help
+      exit 2
+    fi
     return 0
   fi
 
