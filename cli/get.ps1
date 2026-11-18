@@ -241,12 +241,10 @@ function Install-GraftcodeRules {
 }
 
 function Install-GraftcodeGateway {
-    Initialize-GraftGatewayInstallerLibs
     Install-GraftcodeGatewayToCwd
 }
 
 function Get-PluginArchSuffix {
-    Initialize-GraftGatewayInstallerLibs
     $ArchSuffix = Get-NativeWindowsArchSuffix
 
     switch ($ArchSuffix) {
