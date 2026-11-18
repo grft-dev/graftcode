@@ -319,20 +319,16 @@ install_plugin_files() {
   mkdir -p "$install_dir"
   installed=""
 
-  if [ -d "$extract_dir/Release" ]; then
-    for file in "$extract_dir"/Release/*.dll; do
-      [ -e "$file" ] || continue
-      cp "$file" "$install_dir/"
-      installed="$installed
- - $(basename "$file")"
-    done
-  fi
-
   if has_cmd find; then
-    for file in $(find "$extract_dir" -maxdepth 4 -type f \( -name '*.so' -o -name '*.dylib' \) 2>/dev/null); do
+    for file in $(find "$extract_dir" -maxdepth 6 -type f \( -name '*.dll' -o -name '*.so' -o -name '*.dylib' \) 2>/dev/null); do
+      [ -n "$file" ] || continue
+      base="$(basename "$file")"
+      case "$installed" in
+        *"$base"*) continue ;;
+      esac
       cp "$file" "$install_dir/"
       installed="$installed
- - $(basename "$file")"
+ - $base"
     done
   fi
 

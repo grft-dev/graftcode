@@ -257,31 +257,23 @@ function Install-GraftcodePluginFiles {
         New-Item -ItemType Directory -Path $TargetDir -Force | Out-Null
     }
 
-    $Installed = @()
-    $ReleaseDir = Join-Path $ExtractDir 'Release'
+    $Installed = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
 
-    if (Test-Path $ReleaseDir) {
-        Get-ChildItem -Path $ReleaseDir -File -Filter '*.dll' | ForEach-Object {
-            Copy-Item -Path $_.FullName -Destination (Join-Path $TargetDir $_.Name) -Force
-            $Installed += $_.Name
-        }
-    }
-
-    Get-ChildItem -Path $ExtractDir -Recurse -File -ErrorAction SilentlyContinue |
-        Where-Object { $_.Extension -in '.so', '.dylib' } |
-        ForEach-Object {
-            if ($Installed -notcontains $_.Name) {
-                Copy-Item -Path $_.FullName -Destination (Join-Path $TargetDir $_.Name) -Force
-                $Installed += $_.Name
+    foreach ($pattern in @('*.dll', '*.so', '*.dylib')) {
+        Get-ChildItem -Path $ExtractDir -Recurse -File -Filter $pattern -ErrorAction SilentlyContinue |
+            ForEach-Object {
+                if ($Installed.Add($_.Name)) {
+                    Copy-Item -Path $_.FullName -Destination (Join-Path $TargetDir $_.Name) -Force
+                }
             }
-        }
+    }
 
     if ($Installed.Count -eq 0) {
         $Available = (Get-ChildItem -Path $ExtractDir -Recurse -File | ForEach-Object { $_.FullName }) -join "`n - "
         throw "Could not find $PluginLabel plugin binaries inside archive. Extracted files:`n - $Available"
     }
 
-    return $Installed
+    return @($Installed)
 }
 
 function Install-GraftcodePlugin {
