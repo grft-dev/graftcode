@@ -1,22 +1,22 @@
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
-$CliDir = $PSScriptRoot
-if (-not $CliDir) {
-  $CliDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-}
+$GrftRawBase = 'https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli'
+$GrftHome = if ($env:GRFT_HOME) { $env:GRFT_HOME } else { Join-Path $env:USERPROFILE '.grft' }
 
-$script:CliDir = $CliDir
+$EnsureLayoutPath = if ($PSScriptRoot) { Join-Path $PSScriptRoot 'ensure-ps-cli-layout.ps1' } else { $null }
+if ($EnsureLayoutPath -and (Test-Path -LiteralPath $EnsureLayoutPath)) {
+    . $EnsureLayoutPath
+}
+else {
+    $EnsureLayoutTmp = Join-Path $env:TEMP 'grft-ensure-ps-cli-layout.ps1'
+    Invoke-WebRequest -Uri "$GrftRawBase/ensure-ps-cli-layout.ps1" -OutFile $EnsureLayoutTmp -UseBasicParsing
+    . $EnsureLayoutTmp
+}
+$CliDir = Initialize-GraftPowerShellCliLayout -GrftRawBase $GrftRawBase -GrftHome $GrftHome
 
 $UiPath = Join-Path (Join-Path $CliDir 'lib') 'ui.ps1'
 $GatewayPath = Join-Path (Join-Path $CliDir 'lib') 'gateway-installer.ps1'
-if (-not (Test-Path $UiPath)) {
-  throw "Missing installer UI library: $UiPath"
-}
-if (-not (Test-Path $GatewayPath)) {
-  throw "Missing gateway installer library: $GatewayPath"
-}
-
 . $UiPath
 . $GatewayPath
 

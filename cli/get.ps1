@@ -8,24 +8,23 @@ $GrftHome = if ($env:GRFT_HOME) { $env:GRFT_HOME } else { Join-Path $env:USERPRO
 $RulesRawBase = "https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/rules"
 $RuleLangs = @('dotnet', 'java', 'kotlin', 'php', 'python', 'ruby', 'typescript-node-nextjs')
 
-$GraftCliDir = $PSScriptRoot
-if (-not $GraftCliDir) {
-    $GraftCliDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$EnsureLayoutPath = if ($PSScriptRoot) { Join-Path $PSScriptRoot 'ensure-ps-cli-layout.ps1' } else { $null }
+if ($EnsureLayoutPath -and (Test-Path -LiteralPath $EnsureLayoutPath)) {
+    . $EnsureLayoutPath
 }
-$script:CliDir = $GraftCliDir
+else {
+    $EnsureLayoutTmp = Join-Path $env:TEMP 'grft-ensure-ps-cli-layout.ps1'
+    Invoke-WebRequest -Uri "$GrftRawBase/ensure-ps-cli-layout.ps1" -OutFile $EnsureLayoutTmp -UseBasicParsing
+    . $EnsureLayoutTmp
+}
+$GraftCliDir = Initialize-GraftPowerShellCliLayout -GrftRawBase $GrftRawBase -GrftHome $GrftHome
 
 $GraftGatewayUiPath = Join-Path (Join-Path $GraftCliDir 'lib') 'ui.ps1'
 $GraftGatewayInstallerPath = Join-Path (Join-Path $GraftCliDir 'lib') 'gateway-installer.ps1'
-if (-not (Test-Path $GraftGatewayUiPath) -or -not (Test-Path $GraftGatewayInstallerPath)) {
-    throw "Missing gateway installer libraries under $GraftCliDir\lib"
-}
 . $GraftGatewayUiPath
 . $GraftGatewayInstallerPath
 . (Join-Path (Join-Path $GraftCliDir 'lib') 'plugin-manifest.ps1')
 $script:GraftGatewayInstallerLibsLoaded = $true
-
-function Initialize-GraftGatewayInstallerLibs {
-}
 
 function Test-GrftInteractiveConsole {
     -not [Console]::IsInputRedirected -and -not [Console]::IsOutputRedirected
@@ -53,7 +52,18 @@ function Show-GraftcodeIntro {
     Write-Host "  2. Download Graftcode Gateway"
     Write-Host "     - gateway for your processor"
     Write-Host "  3. Download Graftcode Plugins"
-    Write-Host "     - messaging plugins for the gateway (plugins.manifest.json)"
+    try {
+        $PluginNames = Get-GraftPluginHelpNames
+    }
+    catch {
+        $PluginNames = $null
+    }
+    if ($PluginNames) {
+        Write-Host "     - messaging plugins for the gateway ($PluginNames)"
+    }
+    else {
+        Write-Host "     - messaging plugins for the gateway"
+    }
     if (Test-GrftHomePresent) {
         Write-Host "  4. Uninstall Graftcode CLI"
         Write-Host "     - remove ~/.grft and PATH entry"
@@ -453,10 +463,17 @@ function Update-GrftIfNeeded {
 
     Download-FileWithSpinner -Url "$GrftRawBase/get.ps1" -OutputPath (Join-Path $GrftHome 'get.ps1') -Label 'get.ps1'
     Download-FileWithSpinner -Url "$GrftRawBase/VERSION" -OutputPath (Join-Path $GrftHome 'VERSION') -Label 'VERSION'
+    Download-FileWithSpinner -Url "$GrftRawBase/ensure-ps-cli-layout.ps1" -OutputPath (Join-Path $GrftHome 'ensure-ps-cli-layout.ps1') -Label 'ensure-ps-cli-layout.ps1'
     try {
         Download-FileWithSpinner -Url "$GrftRawBase/bin/grft.cmd" -OutputPath (Join-Path $BinDir 'grft.cmd') -Label 'grft.cmd'
     }
     catch {}
+    Download-FileWithSpinner -Url "$GrftRawBase/plugins.manifest.json" -OutputPath (Join-Path $GrftHome 'plugins.manifest.json') -Label 'plugins.manifest.json'
+    $UpdateLibDir = Join-Path $GrftHome 'lib'
+    New-Item -ItemType Directory -Path $UpdateLibDir -Force | Out-Null
+    foreach ($libName in @('ui.ps1', 'gateway-installer.ps1', 'plugin-manifest.ps1')) {
+        Download-FileWithSpinner -Url "$GrftRawBase/lib/$libName" -OutputPath (Join-Path $UpdateLibDir $libName) -Label "lib/$libName"
+    }
 
     $env:GRFT_SKIP_UPDATE = '1'
     $ArgList = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $GrftHome 'get.ps1')) + $ForwardArgs

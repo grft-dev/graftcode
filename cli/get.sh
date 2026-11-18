@@ -49,7 +49,24 @@ EOF
   say "  2. Download Graftcode Gateway"
   say "     - gateway for your processor"
   say "  3. Download Graftcode Plugins"
-  say "     - messaging plugins for the gateway (see plugins.manifest.json)"
+  plugin_manifest=""
+  script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+  if [ -n "${GRAFT_CLI_DIR:-}" ] && [ -f "$GRAFT_CLI_DIR/plugins.manifest.json" ]; then
+    plugin_manifest="$GRAFT_CLI_DIR/plugins.manifest.json"
+  elif [ -f "$script_dir/plugins.manifest.json" ]; then
+    plugin_manifest="$script_dir/plugins.manifest.json"
+  elif [ -f "$GRFT_HOME/plugins.manifest.json" ]; then
+    plugin_manifest="$GRFT_HOME/plugins.manifest.json"
+  fi
+  plugin_names=""
+  if [ -n "$plugin_manifest" ] && [ -f "$plugin_manifest" ]; then
+    plugin_names="$(sed -n 's/.*"id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$plugin_manifest" | tr '\n' ',' | sed 's/,$//')"
+  fi
+  if [ -n "$plugin_names" ]; then
+    say "     - messaging plugins for the gateway ($plugin_names)"
+  else
+    say "     - messaging plugins for the gateway"
+  fi
   if is_grft_home_present; then
     say "  4. Uninstall Graftcode CLI"
     say "     - remove ~/.grft and PATH entry"

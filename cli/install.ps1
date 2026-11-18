@@ -42,7 +42,28 @@ New-Item -ItemType Directory -Path $BinDir -Force | Out-Null
 
 Save-GrftFile -RelativePath 'VERSION' -OutputPath (Join-Path $GrftHome 'VERSION') -Label 'VERSION'
 Save-GrftFile -RelativePath 'get.ps1' -OutputPath (Join-Path $GrftHome 'get.ps1') -Label 'get.ps1'
+Save-GrftFile -RelativePath 'ensure-ps-cli-layout.ps1' -OutputPath (Join-Path $GrftHome 'ensure-ps-cli-layout.ps1') -Label 'ensure-ps-cli-layout.ps1'
 Save-GrftFile -RelativePath 'bin/grft.cmd' -OutputPath (Join-Path $BinDir 'grft.cmd') -Label 'grft.cmd'
+Save-GrftFile -RelativePath 'plugins.manifest.json' -OutputPath (Join-Path $GrftHome 'plugins.manifest.json') -Label 'plugins.manifest.json'
+
+$DestLib = Join-Path $GrftHome 'lib'
+New-Item -ItemType Directory -Path $DestLib -Force | Out-Null
+$SourceLib = Join-Path $SourceDir 'lib'
+if ($SourceLib -and (Test-Path $SourceLib)) {
+    Get-ChildItem -Path $SourceLib -Filter '*.ps1' | ForEach-Object {
+        Copy-Item -Path $_.FullName -Destination (Join-Path $DestLib $_.Name) -Force
+    }
+    Write-Host 'Installed lib/*.ps1 from local checkout' -ForegroundColor DarkGray
+}
+else {
+    foreach ($libName in @('ui.ps1', 'gateway-installer.ps1', 'plugin-manifest.ps1')) {
+        Save-GrftFile -RelativePath "lib/$libName" -OutputPath (Join-Path $DestLib $libName) -Label "lib/$libName"
+    }
+}
+
+$DestAssets = Join-Path $GrftHome 'assets'
+New-Item -ItemType Directory -Path $DestAssets -Force | Out-Null
+Save-GrftFile -RelativePath 'assets/logo_ascii.txt' -OutputPath (Join-Path $DestAssets 'logo_ascii.txt') -Label 'assets/logo_ascii.txt'
 
 $Version = (Get-Content -Raw (Join-Path $GrftHome 'VERSION')).Trim()
 
