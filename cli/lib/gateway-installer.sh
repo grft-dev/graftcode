@@ -82,6 +82,78 @@ gi_build_asset_name() {
   esac
 }
 
+gi_cache_home() {
+  if [ -n "${GRAFTCODE_CACHE_HOME:-}" ]; then
+    echo "$GRAFTCODE_CACHE_HOME"
+  elif [ -n "${HOME:-}" ]; then
+    echo "$HOME/.graftcode"
+  else
+    echo ""
+  fi
+}
+
+gi_release_tag_from_json() {
+  release_json="$1"
+  grep '"tag_name"' "$release_json" |
+    sed 's/.*"tag_name": "\([^"]*\)".*/\1/' |
+    head -n 1
+}
+
+gi_cache_rel_deb() {
+  os_name="$1"
+  arch_suffix="$2"
+  echo "${os_name}-${arch_suffix}/gg.deb"
+}
+
+gi_cache_rel_binary() {
+  os_name="$1"
+  arch_suffix="$2"
+  case "$os_name" in
+    windows) echo "windows-${arch_suffix}/gg.exe" ;;
+    *) echo "${os_name}-${arch_suffix}/gg" ;;
+  esac
+}
+
+gi_try_copy_from_cache() {
+  cache_home="$1"
+  release_tag="$2"
+  rel_path="$3"
+  dest_path="$4"
+
+  if [ -z "$cache_home" ] || [ -z "$release_tag" ] || [ -z "$rel_path" ]; then
+    return 1
+  fi
+
+  cache_file="${cache_home%/}/${release_tag}/${rel_path}"
+  if [ ! -f "$cache_file" ]; then
+    return 1
+  fi
+
+  mkdir -p "$(dirname "$dest_path")"
+  rm -f "$dest_path"
+  cp "$cache_file" "$dest_path"
+  chmod +x "$dest_path" 2>/dev/null || true
+  gi_say "Using cached Gateway ${release_tag} (${rel_path})."
+  return 0
+}
+
+gi_store_in_cache() {
+  cache_home="$1"
+  release_tag="$2"
+  rel_path="$3"
+  src_path="$4"
+
+  if [ -z "$cache_home" ] || [ -z "$release_tag" ] || [ ! -f "$src_path" ]; then
+    return 0
+  fi
+
+  cache_file="${cache_home%/}/${release_tag}/${rel_path}"
+  mkdir -p "$(dirname "$cache_file")"
+  cp "$src_path" "$cache_file"
+  chmod +x "$cache_file" 2>/dev/null || true
+  printf '%s\n' "$release_tag" > "${cache_home%/}/latest-tag.txt"
+}
+
 gi_extract_gateway() {
   archive_path="$1"
   extract_dir="$2"
@@ -195,12 +267,34 @@ install_gg_to_cwd() {
   release_json="$(mktemp)"
   gi_download_file "https://api.github.com/repos/$GRAFT_GATEWAY_REPO/releases/latest" "$release_json" "latest release metadata" 0
 
+  release_tag="$(gi_release_tag_from_json "$release_json")"
+  cache_home="$(gi_cache_home)"
+
   if [ "$os_name" = "linux" ] && gi_has_cmd dpkg; then
+    deb_rel="$(gi_cache_rel_deb "$os_name" "$arch_suffix")"
+    deb_path="$install_dir/gg.deb"
+    if gi_try_copy_from_cache "$cache_home" "$release_tag" "$deb_rel" "$deb_path"; then
+      if command -v ui_show_installed_deb >/dev/null 2>&1; then
+        ui_show_installed_deb "$deb_path"
+      fi
+      rm -f "$release_json"
+      return 0
+    fi
     if gi_download_deb_package "$arch_suffix" "$release_json" "$install_dir"; then
+      gi_store_in_cache "$cache_home" "$release_tag" "$deb_rel" "$deb_path"
       rm -f "$release_json"
       return 0
     fi
     gi_say "Debian package not found for this architecture, falling back to archive extract..."
+  fi
+
+  bin_rel="$(gi_cache_rel_binary "$os_name" "$arch_suffix")"
+  if gi_try_copy_from_cache "$cache_home" "$release_tag" "$bin_rel" "$output_path"; then
+    if command -v ui_show_installed_binary >/dev/null 2>&1; then
+      ui_show_installed_binary "$output_path"
+    fi
+    rm -f "$release_json"
+    return 0
   fi
 
   asset_name="$(gi_build_asset_name "$os_name" "$arch_suffix")"
@@ -230,6 +324,7 @@ install_gg_to_cwd() {
 
   gi_download_file "$asset_url" "$archive_path" "$asset_name" 1
   gi_extract_gateway "$archive_path" "$extract_dir" "$exe_name" "$output_path"
+  gi_store_in_cache "$cache_home" "$release_tag" "$bin_rel" "$output_path"
 
   rm -rf "$tmp_dir"
   rm -f "$release_json"

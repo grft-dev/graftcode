@@ -71,6 +71,76 @@ function Get-NativeWindowsArchSuffix {
   throw "Unsupported Windows architecture. PROCESSOR_ARCHITECTURE=$($env:PROCESSOR_ARCHITECTURE); PROCESSOR_ARCHITEW6432=$($env:PROCESSOR_ARCHITEW6432)"
 }
 
+function Get-GraftcodeGatewayCacheHome {
+  if ($env:GRAFTCODE_CACHE_HOME) {
+    return $env:GRAFTCODE_CACHE_HOME
+  }
+  return Join-Path $env:USERPROFILE '.graftcode'
+}
+
+function Get-GraftcodeGatewayCacheFilePath {
+  param(
+    [string]$CacheHome,
+    [string]$ReleaseTag,
+    [string]$RelativePath
+  )
+
+  return Join-Path (Join-Path $CacheHome $ReleaseTag) ($RelativePath -replace '/', [IO.Path]::DirectorySeparatorChar)
+}
+
+function Try-InstallGraftcodeGatewayFromCache {
+  param(
+    [string]$CacheHome,
+    [string]$ReleaseTag,
+    [string]$RelativePath,
+    [string]$DestPath
+  )
+
+  if ([string]::IsNullOrWhiteSpace($CacheHome) -or [string]::IsNullOrWhiteSpace($ReleaseTag)) {
+    return $false
+  }
+
+  $CacheFile = Get-GraftcodeGatewayCacheFilePath -CacheHome $CacheHome -ReleaseTag $ReleaseTag -RelativePath $RelativePath
+  if (-not (Test-Path $CacheFile)) {
+    return $false
+  }
+
+  $destDir = Split-Path -Parent $DestPath
+  if (-not (Test-Path $destDir)) {
+    New-Item -ItemType Directory -Path $destDir -Force | Out-Null
+  }
+
+  if (Test-Path $DestPath) {
+    Remove-Item $DestPath -Force
+  }
+
+  Copy-Item -Path $CacheFile -Destination $DestPath -Force
+  Ui-Say "Using cached Gateway $ReleaseTag ($RelativePath)."
+  return $true
+}
+
+function Save-GraftcodeGatewayToCache {
+  param(
+    [string]$CacheHome,
+    [string]$ReleaseTag,
+    [string]$RelativePath,
+    [string]$SourcePath
+  )
+
+  if ([string]::IsNullOrWhiteSpace($CacheHome) -or -not (Test-Path $SourcePath)) {
+    return
+  }
+
+  $CacheFile = Get-GraftcodeGatewayCacheFilePath -CacheHome $CacheHome -ReleaseTag $ReleaseTag -RelativePath $RelativePath
+  $cacheDir = Split-Path -Parent $CacheFile
+  if (-not (Test-Path $cacheDir)) {
+    New-Item -ItemType Directory -Path $cacheDir -Force | Out-Null
+  }
+
+  Copy-Item -Path $SourcePath -Destination $CacheFile -Force
+  Set-Content -Path (Join-Path $CacheHome 'latest-tag.txt') -Value $ReleaseTag
+}
+
 function Install-GraftcodeGatewayToCwd {
   param(
     [string]$InstallDir = $PWD.Path
@@ -89,6 +159,14 @@ function Install-GraftcodeGatewayToCwd {
   Ui-ObtainingLatestRelease
 
   $Release = Invoke-RestMethod "https://api.github.com/repos/$Repo/releases/latest"
+  $ReleaseTag = $Release.tag_name
+  $CacheHome = Get-GraftcodeGatewayCacheHome
+  $CacheRel = "windows-${ArchSuffix}/gg.exe"
+
+  if (Try-InstallGraftcodeGatewayFromCache -CacheHome $CacheHome -ReleaseTag $ReleaseTag -RelativePath $CacheRel -DestPath $OutputPath) {
+    Show-UiGatewayInstalled -OutputPath $OutputPath
+    return
+  }
 
   $Asset = $Release.assets |
     Where-Object { $_.name -ieq $AssetName } |
@@ -131,6 +209,7 @@ function Install-GraftcodeGatewayToCwd {
       $Zip.Dispose()
     }
 
+    Save-GraftcodeGatewayToCache -CacheHome $CacheHome -ReleaseTag $ReleaseTag -RelativePath $CacheRel -SourcePath $OutputPath
     Show-UiGatewayInstalled -OutputPath $OutputPath
   }
   finally {
