@@ -6,20 +6,30 @@ $ExeName = 'gg.exe'
 $InstallDir = $PWD.Path
 $OutputPath = Join-Path $InstallDir $ExeName
 
+$CliDir = $PSScriptRoot
+if (-not $CliDir) {
+  $CliDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+}
+$CliRawBase = 'https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli'
+
+function Get-GraftcodeGatewayLogoText {
+  $logoPath = Join-Path $CliDir 'assets' 'logo_ascii.txt'
+  if (Test-Path $logoPath) {
+    return (Get-Content -Path $logoPath -Raw)
+  }
+
+  try {
+    return (Invoke-RestMethod -Uri "$CliRawBase/assets/logo_ascii.txt" -ErrorAction Stop)
+  }
+  catch {
+    throw "Could not load Gateway logo from '$logoPath' or '$CliRawBase/assets/logo_ascii.txt'."
+  }
+}
+
 function Show-GgIntro {
   Clear-Host
 
-  Write-Host @"
-                       __ _                _      
-                      / _| |              | |     
-       __ _ _ __ __ _| |_| |_ ___ ___   __| | ___ 
-      / _` | '__/ _` |  _| __/ __/ _ \ / _` |/ _ \
-     | (_| | | | (_| | | | || (_| (_) | (_| |  __/
-      \__, |_|  \__,_|_|  \__\___\___/ \__,_|\___|
-       __/ |                                      
-      |___/   
-
-"@ -ForegroundColor Cyan
+  Write-Host (Get-GraftcodeGatewayLogoText) -ForegroundColor Cyan
 
   Write-Host "Graftcode Gateway installer" -ForegroundColor White
   Write-Host ""

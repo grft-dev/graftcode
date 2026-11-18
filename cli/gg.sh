@@ -4,25 +4,48 @@ set -eu
 REPO="grft-dev/graftcode-gateway"
 EXE_NAME="gg"
 INSTALL_DIR="$PWD"
+CLI_RAW_BASE="${CLI_RAW_BASE:-https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli}"
 
 say() {
   echo "$@"
 }
 
+has_cmd() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+print_gateway_logo() {
+  logo_path=""
+
+  case "$0" in
+    -|sh|bash) ;;
+    *)
+      script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+      if [ -f "$script_dir/assets/logo_ascii.txt" ]; then
+        logo_path="$script_dir/assets/logo_ascii.txt"
+      fi
+      ;;
+  esac
+
+  if [ -n "$logo_path" ]; then
+    cat "$logo_path"
+    return 0
+  fi
+
+  if has_cmd curl; then
+    curl -fsSL "$CLI_RAW_BASE/assets/logo_ascii.txt"
+    return 0
+  fi
+
+  say "Error: could not load Gateway logo (need local cli/assets/logo_ascii.txt or curl)."
+  exit 1
+}
+
 show_intro() {
   clear 2>/dev/null || true
 
-  cat <<'EOF'
-                       __ _                _      
-                      / _| |              | |     
-       __ _ _ __ __ _| |_| |_ ___ ___   __| | ___ 
-      / _` | '__/ _` |  _| __/ __/ _ \ / _` |/ _ \
-     | (_| | | | (_| | | | || (_| (_) | (_| |  __/
-      \__, |_|  \__,_|_|  \__\___\___/ \__,_|\___|
-       __/ |                                      
-      |___/   
-
-EOF
+  print_gateway_logo
+  echo ""
 
   say "Graftcode Gateway installer"
   say ""
@@ -30,10 +53,6 @@ EOF
   say "On Debian/Ubuntu it saves gg.deb here — install with: dpkg -i gg.deb"
   say "On other systems it extracts ./gg into the current directory."
   say ""
-}
-
-has_cmd() {
-  command -v "$1" >/dev/null 2>&1
 }
 
 download_file() {
