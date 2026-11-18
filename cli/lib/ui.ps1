@@ -43,6 +43,27 @@ function Ui-MaybeClearHost {
   }
 }
 
+$script:UiBrandRgb = '218;26;96'
+
+function Write-UiBrandLogo {
+  param([string]$Text)
+
+  if ([string]::IsNullOrWhiteSpace($Text)) { return }
+
+  $body = $Text.TrimEnd()
+  if (-not (Test-UiIsInteractive)) {
+    Write-Host $body
+    return
+  }
+
+  $esc = [char]0x1B
+  $on = "${esc}[38;2;$($script:UiBrandRgb)m"
+  $off = "${esc}[0m"
+  foreach ($line in ($body -split "`r?`n")) {
+    Write-Host ($on + $line + $off)
+  }
+}
+
 function Get-UiGatewayLogoText {
   $logoPath = Join-Path (Join-Path $script:CliDir 'assets') 'logo_ascii.txt'
   if (Test-Path $logoPath) {
@@ -59,7 +80,7 @@ function Get-UiGatewayLogoText {
 
 function Show-UiGatewayIntro {
   Ui-MaybeClearHost
-  Write-Host (Get-UiGatewayLogoText) -ForegroundColor Cyan
+  Write-UiBrandLogo (Get-UiGatewayLogoText)
   Ui-Say ''
   Ui-Say 'Graftcode Gateway installer'
   Ui-Say ''

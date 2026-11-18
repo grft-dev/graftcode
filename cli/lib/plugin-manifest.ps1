@@ -18,10 +18,10 @@ function Get-GraftPluginsRepo {
 }
 
 function Resolve-GraftPluginId {
-    param([string]$Input)
+    param([string]$PluginQuery)
 
     $manifest = Get-GraftPluginManifest
-    $needle = $Input.Trim().ToLowerInvariant()
+    $needle = $PluginQuery.Trim().ToLowerInvariant()
 
     if ($needle -match '^\d+$') {
         $idx = [int]$needle

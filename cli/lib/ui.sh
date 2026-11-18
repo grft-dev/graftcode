@@ -2,6 +2,7 @@
 # Shared CLI output for Gateway / installer scripts (5272). Dot-source only.
 
 CLI_RAW_BASE="${CLI_RAW_BASE:-https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli}"
+UI_BRAND_RGB="${UI_BRAND_RGB:-218;26;96}"
 
 ui_has_cmd() {
   command -v "$1" >/dev/null 2>&1
@@ -70,9 +71,28 @@ ui_load_logo_text() {
   exit 1
 }
 
+ui_print_brand_logo() {
+  text="$1"
+  if [ -z "$text" ]; then
+    return 0
+  fi
+  if ui_is_tty; then
+  printf '\033[38;2;%sm' "$UI_BRAND_RGB"
+  fi
+  printf '%s' "$text"
+  if ui_is_tty; then
+    printf '\033[0m'
+  fi
+  printf '\n'
+}
+
+ui_show_gateway_logo() {
+  ui_print_brand_logo "$(ui_load_logo_text)"
+}
+
 ui_show_gateway_intro() {
   ui_maybe_clear
-  ui_load_logo_text
+  ui_show_gateway_logo
   echo ""
   ui_say "Graftcode Gateway installer"
   ui_say ""
