@@ -6,74 +6,46 @@ EXE_NAME="gg"
 INSTALL_DIR="$PWD"
 CLI_RAW_BASE="${CLI_RAW_BASE:-https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli}"
 
+graft_cli_source_ui() {
+  case "$0" in
+    -|sh|bash)
+      if ! command -v curl >/dev/null 2>&1; then
+        echo "Error: curl is required to load installer UI when running from a pipe."
+        exit 1
+      fi
+      ui_tmp="$(mktemp)"
+      curl -fsSL "$CLI_RAW_BASE/lib/ui.sh" -o "$ui_tmp"
+      # shellcheck source=/dev/null
+      . "$ui_tmp"
+      rm -f "$ui_tmp"
+      ;;
+    *)
+      script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+      ui_local="$(mktemp)"
+      sed 's/\r$//' "$script_dir/lib/ui.sh" > "$ui_local"
+      # shellcheck source=/dev/null
+      . "$ui_local"
+      rm -f "$ui_local"
+      ;;
+  esac
+}
+
+graft_cli_source_ui
+
 say() {
-  echo "$@"
+  ui_say "$@"
 }
 
 has_cmd() {
-  command -v "$1" >/dev/null 2>&1
-}
-
-print_gateway_logo() {
-  logo_path=""
-
-  case "$0" in
-    -|sh|bash) ;;
-    *)
-      script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
-      if [ -f "$script_dir/assets/logo_ascii.txt" ]; then
-        logo_path="$script_dir/assets/logo_ascii.txt"
-      fi
-      ;;
-  esac
-
-  if [ -n "$logo_path" ]; then
-    cat "$logo_path"
-    return 0
-  fi
-
-  if has_cmd curl; then
-    curl -fsSL "$CLI_RAW_BASE/assets/logo_ascii.txt"
-    return 0
-  fi
-
-  say "Error: could not load Gateway logo (need local cli/assets/logo_ascii.txt or curl)."
-  exit 1
-}
-
-show_intro() {
-  clear 2>/dev/null || true
-
-  print_gateway_logo
-  echo ""
-
-  say "Graftcode Gateway installer"
-  say ""
-  say "This script downloads Graftcode Gateway (gg) for your platform."
-  say "On Debian/Ubuntu it saves gg.deb here — install with: dpkg -i gg.deb"
-  say "On other systems it extracts ./gg into the current directory."
-  say ""
+  ui_has_cmd "$@"
 }
 
 download_file() {
   url="$1"
   output="$2"
   label="$3"
-
-  say "Downloading $label..."
-
-  if has_cmd curl; then
-    curl -fL "$url" -o "$output"
-  elif has_cmd wget; then
-    wget -O "$output" "$url"
-  elif has_cmd busybox; then
-    busybox wget -O "$output" "$url"
-  else
-    say "Error: curl, wget or busybox wget is required to download files."
-    exit 1
-  fi
-
-  say "Downloaded $label"
+  show_progress="${4:-0}"
+  ui_download_file "$url" "$output" "$label" "$show_progress"
 }
 
 detect_os() {
@@ -139,17 +111,8 @@ download_deb_package() {
     return 1
   fi
 
-  download_file "$asset_url" "$deb_path" "$deb_name"
-  say ""
-  say "Downloaded Debian package:"
-  say "$deb_path"
-  say ""
-  say "Install it with:"
-  if [ "$(id -u 2>/dev/null || echo 1)" -eq 0 ]; then
-    say "  dpkg -i $deb_path"
-  else
-    say "  sudo dpkg -i $deb_path"
-  fi
+  download_file "$asset_url" "$deb_path" "$deb_name" 1
+  ui_show_installed_deb "$deb_path"
   return 0
 }
 
@@ -240,10 +203,10 @@ install_gg() {
   say ""
   say "Detected OS: $os_name"
   say "Detected architecture: $arch_suffix"
-  say "Fetching latest release from $REPO..."
+  ui_obtaining_latest_release
 
   release_json="$(mktemp)"
-  download_file "https://api.github.com/repos/$REPO/releases/latest" "$release_json" "latest release metadata"
+  download_file "https://api.github.com/repos/$REPO/releases/latest" "$release_json" "latest release metadata" 0
 
   if [ "$os_name" = "linux" ] && has_cmd dpkg; then
     if download_deb_package "$arch_suffix" "$release_json"; then
@@ -278,19 +241,15 @@ install_gg() {
   archive_path="$tmp_dir/$asset_name"
   extract_dir="$tmp_dir/extract"
 
-  download_file "$asset_url" "$archive_path" "$asset_name"
+  download_file "$asset_url" "$archive_path" "$asset_name" 1
   extract_gateway "$archive_path" "$extract_dir" "$exe_name" "$output_path"
 
   rm -rf "$tmp_dir"
   rm -f "$release_json"
 
-  say ""
-  say "Installed Graftcode Gateway:"
-  say "$output_path"
+  ui_show_installed_binary "$output_path"
 }
 
-show_intro
+ui_show_gateway_intro
 install_gg
-
-say ""
-say "Done."
+ui_show_done

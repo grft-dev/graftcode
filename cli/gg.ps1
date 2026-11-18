@@ -10,62 +10,14 @@ $CliDir = $PSScriptRoot
 if (-not $CliDir) {
   $CliDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 }
-$CliRawBase = 'https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli'
 
-function Get-GraftcodeGatewayLogoText {
-  $logoPath = Join-Path $CliDir 'assets' 'logo_ascii.txt'
-  if (Test-Path $logoPath) {
-    return (Get-Content -Path $logoPath -Raw)
-  }
-
-  try {
-    return (Invoke-RestMethod -Uri "$CliRawBase/assets/logo_ascii.txt" -ErrorAction Stop)
-  }
-  catch {
-    throw "Could not load Gateway logo from '$logoPath' or '$CliRawBase/assets/logo_ascii.txt'."
-  }
+$UiPath = Join-Path (Join-Path $CliDir 'lib') 'ui.ps1'
+if (-not (Test-Path $UiPath)) {
+  throw "Missing installer UI library: $UiPath"
 }
 
-function Show-GgIntro {
-  Clear-Host
-
-  Write-Host (Get-GraftcodeGatewayLogoText) -ForegroundColor Cyan
-
-  Write-Host "Graftcode Gateway installer" -ForegroundColor White
-  Write-Host ""
-  Write-Host "This script downloads and installs Graftcode Gateway (gg.exe)" -ForegroundColor White
-  Write-Host "in the current directory." -ForegroundColor White
-  Write-Host ""
-}
-
-function Download-FileWithSpinner {
-  param(
-    [string]$Url,
-    [string]$OutputPath,
-    [string]$Label
-  )
-
-  Write-Host "Downloading $Label..."
-
-  $Job = Start-Job {
-    param($Url, $OutputPath)
-    $ProgressPreference = 'SilentlyContinue'
-    Invoke-WebRequest $Url -OutFile $OutputPath
-  } -ArgumentList $Url, $OutputPath
-
-  $Spinner = '|', '/', '-', '\'
-  $Index = 0
-
-  while ($Job.State -eq 'Running') {
-    Write-Host -NoNewline "`rDownloading $Label $($Spinner[$Index++ % $Spinner.Count])"
-    Start-Sleep -Milliseconds 120
-  }
-
-  Receive-Job $Job | Out-Null
-  Remove-Job $Job
-
-  Write-Host "`rDownloaded $Label " -ForegroundColor Green
-}
+$script:CliDir = $CliDir
+. $UiPath
 
 function ConvertTo-WindowsArchSuffix {
   param([string]$Value)
@@ -88,9 +40,6 @@ function ConvertTo-WindowsArchSuffix {
 }
 
 function Get-NativeWindowsArchSuffix {
-  # Collect native OS signals first. Under x64 emulation on Windows ARM,
-  # PROCESSOR_ARCHITECTURE and sometimes OSArchitecture report x64/AMD64
-  # while Win32_OperatingSystem still reports an ARM CPU.
   $NativeSignals = @()
 
   if ($env:PROCESSOR_ARCHITEW6432) {
@@ -132,19 +81,14 @@ function Get-NativeWindowsArchSuffix {
   throw "Unsupported Windows architecture. PROCESSOR_ARCHITECTURE=$($env:PROCESSOR_ARCHITECTURE); PROCESSOR_ARCHITEW6432=$($env:PROCESSOR_ARCHITEW6432)"
 }
 
-function Get-GgArchSuffix {
-  Get-NativeWindowsArchSuffix
-}
-
 function Install-Gg {
-  $OsName = 'windows'
-  $ArchSuffix = Get-GgArchSuffix
-  $AssetName = "gg_${OsName}_${ArchSuffix}.zip"
+  $ArchSuffix = Get-NativeWindowsArchSuffix
+  $AssetName = "gg_windows_${ArchSuffix}.zip"
 
-  Write-Host ""
-  Write-Host "Detected OS: $OsName"
-  Write-Host "Detected architecture: $ArchSuffix"
-  Write-Host "Fetching latest release from $Repo..."
+  Ui-Say ''
+  Ui-Say "Detected OS: windows"
+  Ui-Say "Detected architecture: $ArchSuffix"
+  Ui-ObtainingLatestRelease
 
   $Release = Invoke-RestMethod "https://api.github.com/repos/$Repo/releases/latest"
 
@@ -164,7 +108,7 @@ function Install-Gg {
 
   try {
     $ZipPath = Join-Path $TempDir $Asset.name
-    Download-FileWithSpinner -Url $Asset.browser_download_url -OutputPath $ZipPath -Label $Asset.name
+    Ui-DownloadFile -Url $Asset.browser_download_url -OutputPath $ZipPath -Label $Asset.name -ShowProgress
 
     Add-Type -AssemblyName System.IO.Compression.FileSystem
 
@@ -189,9 +133,7 @@ function Install-Gg {
       $Zip.Dispose()
     }
 
-    Write-Host ""
-    Write-Host "Installed Graftcode Gateway:" -ForegroundColor Green
-    Write-Host $OutputPath
+    Show-UiGatewayInstalled -OutputPath $OutputPath
   }
   finally {
     if (Test-Path $TempDir) {
@@ -200,8 +142,6 @@ function Install-Gg {
   }
 }
 
-Show-GgIntro
+Show-UiGatewayIntro
 Install-Gg
-
-Write-Host ""
-Write-Host "Done." -ForegroundColor Green
+Show-UiDone
