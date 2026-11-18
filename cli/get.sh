@@ -238,150 +238,48 @@ install_rules() {
   install_rules_for_ide "$ide_choice"
 }
 
-detect_os_pattern() {
-  os_name="$(uname -s | tr 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' 'abcdefghijklmnopqrstuvwxyz')"
-
-  case "$os_name" in
-    linux)
-      echo "linux"
-      ;;
-    darwin)
-      echo "darwin|macos|osx"
-      ;;
-    mingw*|msys*|cygwin*|windows*|win*)
-      echo "windows|win"
-      ;;
-    *)
-      say "Unsupported OS: $os_name"
-      exit 1
-      ;;
-  esac
+graft_cli_source_sh_file() {
+  sh_path="$1"
+  sh_local="$(mktemp)"
+  sed 's/\r$//' "$sh_path" > "$sh_local"
+  # shellcheck source=/dev/null
+  . "$sh_local"
+  rm -f "$sh_local"
 }
 
-detect_arch_pattern() {
-  arch_name="$(uname -m | tr 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' 'abcdefghijklmnopqrstuvwxyz')"
+graft_cli_ensure_gateway_installer_libs() {
+  if [ -n "${GRAFT_GATEWAY_INSTALLER_LOADED:-}" ]; then
+    return 0
+  fi
 
-  case "$arch_name" in
-    arm64|aarch64)
-      echo "arm64|aarch64"
-      ;;
-    x86_64|amd64)
-      echo "x64|amd64|x86_64"
-      ;;
-    i386|i686|x86)
-      echo "x86|i386|i686"
-      ;;
-    *)
-      say "Unsupported architecture: $arch_name"
-      exit 1
-      ;;
-  esac
-}
+  CLI_RAW_BASE="${CLI_RAW_BASE:-$GRFT_RAW_BASE}"
+  script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 
-extract_gateway() {
-  archive_path="$1"
-  extract_dir="$2"
-
-  mkdir -p "$extract_dir"
-
-  case "$archive_path" in
-    *.zip)
-      if has_cmd unzip; then
-        unzip -q "$archive_path" -d "$extract_dir"
-      elif has_cmd tar; then
-        tar -xf "$archive_path" -C "$extract_dir"
-      else
-        say "Error: unzip or tar is required to extract .zip files."
-        exit 1
-      fi
-      ;;
-    *.tar.gz|*.tgz)
-      if has_cmd tar; then
-        tar -xzf "$archive_path" -C "$extract_dir"
-      else
-        say "Error: tar is required to extract tar.gz files."
-        exit 1
-      fi
-      ;;
-    *)
-      say "Unsupported archive format: $archive_path"
-      exit 1
-      ;;
-  esac
-
-  found="$(find "$extract_dir" -type f -name "$EXE_NAME" -print | head -n 1 || true)"
-
-  if [ -z "$found" ]; then
-    say "Could not find $EXE_NAME inside archive."
-    say "Extracted files:"
-    find "$extract_dir" -maxdepth 4 -type f | sed 's/^/ - /' > /dev/tty 2>/dev/null || true
+  if [ -f "$script_dir/lib/ui.sh" ]; then
+    graft_cli_source_sh_file "$script_dir/lib/ui.sh"
+    graft_cli_source_sh_file "$script_dir/lib/gateway-installer.sh"
+  elif [ -n "${GRAFT_CLI_DIR:-}" ] && [ -f "$GRAFT_CLI_DIR/lib/ui.sh" ]; then
+    graft_cli_source_sh_file "$GRAFT_CLI_DIR/lib/ui.sh"
+    graft_cli_source_sh_file "$GRAFT_CLI_DIR/lib/gateway-installer.sh"
+  elif has_cmd curl; then
+    ui_tmp="$(mktemp)"
+    gi_tmp="$(mktemp)"
+    curl -fsSL "$CLI_RAW_BASE/lib/ui.sh" -o "$ui_tmp"
+    curl -fsSL "$CLI_RAW_BASE/lib/gateway-installer.sh" -o "$gi_tmp"
+    graft_cli_source_sh_file "$ui_tmp"
+    graft_cli_source_sh_file "$gi_tmp"
+    rm -f "$ui_tmp" "$gi_tmp"
+  else
+    say "Error: curl is required to load gateway installer libraries."
     exit 1
   fi
 
-  rm -f "$OUTPUT_PATH"
-  cp "$found" "$OUTPUT_PATH"
-  chmod +x "$OUTPUT_PATH"
+  GRAFT_GATEWAY_INSTALLER_LOADED=1
 }
 
 install_gateway() {
-  if ! has_cmd grep || ! has_cmd sed || ! has_cmd find || ! has_cmd basename || ! has_cmd mktemp; then
-    say "Error: this installer requires grep, sed, find, basename and mktemp."
-    exit 1
-  fi
-
-  os_pattern="$(detect_os_pattern)"
-  arch_pattern="$(detect_arch_pattern)"
-
-  case "$os_pattern" in
-    *windows*)
-      EXE_NAME="gg.exe"
-      OUTPUT_PATH="$PWD/$EXE_NAME"
-      ;;
-  esac
-
-  say ""
-  say "Detected OS pattern: $os_pattern"
-  say "Detected architecture pattern: $arch_pattern"
-  say "Fetching latest release from $REPO..."
-
-  release_json="$(mktemp)"
-  download_file "https://api.github.com/repos/$REPO/releases/latest" "$release_json" "latest release metadata"
-
-  asset_url="$(
-    grep '"browser_download_url"' "$release_json" |
-      sed 's/.*"browser_download_url": "\(.*\)".*/\1/' |
-      grep -Ei '\.(zip|tar\.gz|tgz)$' |
-      grep -Ei "$os_pattern" |
-      grep -Ei "$arch_pattern" |
-      grep -Eiv '(sha256|checksum|checksums|signature|sig)' |
-      head -n 1 || true
-  )"
-
-  if [ -z "$asset_url" ]; then
-    say "Could not find Gateway build for this machine."
-    say ""
-    say "Available downloadable assets:"
-    grep '"browser_download_url"' "$release_json" |
-      sed 's/.*"browser_download_url": "\(.*\)".*/ - \1/' > /dev/tty 2>/dev/null || true
-    rm -f "$release_json"
-    exit 1
-  fi
-
-  asset_name="$(basename "$asset_url")"
-
-  tmp_dir="$(mktemp -d)"
-  archive_path="$tmp_dir/$asset_name"
-  extract_dir="$tmp_dir/extract"
-
-  download_file "$asset_url" "$archive_path" "$asset_name"
-  extract_gateway "$archive_path" "$extract_dir"
-
-  rm -rf "$tmp_dir"
-  rm -f "$release_json"
-
-  say ""
-  say "Installed Graftcode Gateway:"
-  say "$OUTPUT_PATH"
+  graft_cli_ensure_gateway_installer_libs
+  install_gg_to_cwd
 }
 
 detect_plugin_os() {

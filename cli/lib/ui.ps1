@@ -77,7 +77,14 @@ function Ui-DownloadFile {
     if ($ShowProgress -and (Test-UiIsInteractive)) {
       $curlArgs = @('-fL#', $Url, '-o', $OutputPath)
     }
-    & $curl.Source @curlArgs
+    $prevEa = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+      & $curl.Source @curlArgs 2>$null
+    }
+    finally {
+      $ErrorActionPreference = $prevEa
+    }
     if ($LASTEXITCODE -ne 0) {
       throw "curl failed ($LASTEXITCODE) downloading $Label"
     }

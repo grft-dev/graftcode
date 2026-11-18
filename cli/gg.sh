@@ -1,276 +1,63 @@
 #!/bin/sh
 set -eu
 
-REPO="grft-dev/graftcode-gateway"
-EXE_NAME="gg"
-INSTALL_DIR="$PWD"
 CLI_RAW_BASE="${CLI_RAW_BASE:-https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli}"
 
-graft_cli_source_ui_from_url() {
+graft_cli_source_sh_file() {
+  sh_path="$1"
+  sh_local="$(mktemp)"
+  sed 's/\r$//' "$sh_path" > "$sh_local"
+  # shellcheck source=/dev/null
+  . "$sh_local"
+  rm -f "$sh_local"
+}
+
+graft_cli_source_lib_from_url() {
+  lib_rel="$1"
   if ! command -v curl >/dev/null 2>&1; then
-    echo "Error: curl is required to load installer UI from $CLI_RAW_BASE."
+    echo "Error: curl is required to load $lib_rel from $CLI_RAW_BASE."
     exit 1
   fi
-  ui_tmp="$(mktemp)"
-  curl -fsSL "$CLI_RAW_BASE/lib/ui.sh" -o "$ui_tmp"
-  sed 's/\r$//' "$ui_tmp" > "${ui_tmp}.lf"
+  lib_tmp="$(mktemp)"
+  curl -fsSL "$CLI_RAW_BASE/$lib_rel" -o "$lib_tmp"
+  sed 's/\r$//' "$lib_tmp" > "${lib_tmp}.lf"
   # shellcheck source=/dev/null
-  . "${ui_tmp}.lf"
-  rm -f "$ui_tmp" "${ui_tmp}.lf"
+  . "${lib_tmp}.lf"
+  rm -f "$lib_tmp" "${lib_tmp}.lf"
 }
 
-graft_cli_source_ui_from_file() {
-  ui_path="$1"
-  ui_local="$(mktemp)"
-  sed 's/\r$//' "$ui_path" > "$ui_local"
-  # shellcheck source=/dev/null
-  . "$ui_local"
-  rm -f "$ui_local"
+graft_cli_resolve_script_dir() {
+  case "$0" in
+    -|sh|bash)
+      echo ""
+      ;;
+    *)
+      CDPATH= cd -- "$(dirname -- "$0")" && pwd
+      ;;
+  esac
 }
 
-graft_cli_source_ui() {
-  if [ -n "${GRAFT_CLI_DIR:-}" ] && [ -f "$GRAFT_CLI_DIR/lib/ui.sh" ]; then
-    graft_cli_source_ui_from_file "$GRAFT_CLI_DIR/lib/ui.sh"
+graft_cli_source_lib() {
+  lib_name="$1"
+  lib_rel="lib/$lib_name"
+
+  if [ -n "${GRAFT_CLI_DIR:-}" ] && [ -f "$GRAFT_CLI_DIR/$lib_rel" ]; then
+    graft_cli_source_sh_file "$GRAFT_CLI_DIR/$lib_rel"
     return
   fi
 
-  case "$0" in
-    -|sh|bash)
-      graft_cli_source_ui_from_url
-      ;;
-    *)
-      script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
-      if [ -f "$script_dir/lib/ui.sh" ]; then
-        graft_cli_source_ui_from_file "$script_dir/lib/ui.sh"
-      elif [ -n "${GRAFT_CLI_DIR:-}" ] && [ -f "$GRAFT_CLI_DIR/lib/ui.sh" ]; then
-        graft_cli_source_ui_from_file "$GRAFT_CLI_DIR/lib/ui.sh"
-      else
-        graft_cli_source_ui_from_url
-      fi
-      ;;
-  esac
-}
-
-graft_cli_source_ui
-
-say() {
-  ui_say "$@"
-}
-
-has_cmd() {
-  ui_has_cmd "$@"
-}
-
-download_file() {
-  url="$1"
-  output="$2"
-  label="$3"
-  show_progress="${4:-0}"
-  ui_download_file "$url" "$output" "$label" "$show_progress"
-}
-
-detect_os() {
-  os_name="$(uname -s | tr 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' 'abcdefghijklmnopqrstuvwxyz')"
-
-  case "$os_name" in
-    linux)
-      echo "linux"
-      ;;
-    darwin)
-      echo "macos"
-      ;;
-    mingw*|msys*|cygwin*|windows*|win*)
-      echo "windows"
-      ;;
-    *)
-      say "Unsupported OS: $os_name"
-      exit 1
-      ;;
-  esac
-}
-
-detect_arch_suffix() {
-  os_name="$1"
-  arch_name="$(uname -m | tr 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' 'abcdefghijklmnopqrstuvwxyz')"
-
-  case "$arch_name" in
-    arm64|aarch64)
-      echo "arm64"
-      ;;
-    x86_64|amd64)
-      case "$os_name" in
-        macos) echo "x86_64" ;;
-        *) echo "amd64" ;;
-      esac
-      ;;
-    *)
-      say "Unsupported architecture: $arch_name"
-      exit 1
-      ;;
-  esac
-}
-
-build_deb_asset_name() {
-  arch_suffix="$1"
-  echo "gg_linux_${arch_suffix}.deb"
-}
-
-download_deb_package() {
-  arch_suffix="$1"
-  release_json="$2"
-  deb_name="$(build_deb_asset_name "$arch_suffix")"
-  deb_path="$INSTALL_DIR/gg.deb"
-
-  asset_url="$(
-    grep '"browser_download_url"' "$release_json" |
-      sed 's/.*"browser_download_url": "\(.*\)".*/\1/' |
-      grep -Ei "/${deb_name}$" |
-      head -n 1 || true
-  )"
-
-  if [ -z "$asset_url" ]; then
-    return 1
+  script_dir="$(graft_cli_resolve_script_dir)"
+  if [ -n "$script_dir" ] && [ -f "$script_dir/$lib_rel" ]; then
+    graft_cli_source_sh_file "$script_dir/$lib_rel"
+    return
   fi
 
-  download_file "$asset_url" "$deb_path" "$deb_name" 1
-  ui_show_installed_deb "$deb_path"
-  return 0
+  graft_cli_source_lib_from_url "$lib_rel"
 }
 
-build_asset_name() {
-  os_name="$1"
-  arch_suffix="$2"
-
-  case "$os_name" in
-    windows)
-      echo "gg_${os_name}_${arch_suffix}.zip"
-      ;;
-    *)
-      echo "gg_${os_name}_${arch_suffix}.tar.gz"
-      ;;
-  esac
-}
-
-extract_gateway() {
-  archive_path="$1"
-  extract_dir="$2"
-  exe_name="$3"
-  output_path="$4"
-
-  mkdir -p "$extract_dir"
-
-  case "$archive_path" in
-    *.zip)
-      if has_cmd unzip; then
-        unzip -q "$archive_path" -d "$extract_dir"
-      elif has_cmd tar; then
-        tar -xf "$archive_path" -C "$extract_dir"
-      else
-        say "Error: unzip or tar is required to extract .zip files."
-        exit 1
-      fi
-      ;;
-    *.tar.gz|*.tgz)
-      if has_cmd tar; then
-        tar -xzf "$archive_path" -C "$extract_dir"
-      else
-        say "Error: tar is required to extract tar.gz files."
-        exit 1
-      fi
-      ;;
-    *)
-      say "Unsupported archive format: $archive_path"
-      exit 1
-      ;;
-  esac
-
-  found="$(find "$extract_dir" -type f -name "$exe_name" -print | head -n 1 || true)"
-
-  if [ -z "$found" ]; then
-    say "Could not find $exe_name inside archive."
-    say "Extracted files:"
-    find "$extract_dir" -maxdepth 4 -type f | sed 's/^/ - /'
-    exit 1
-  fi
-
-  rm -f "$output_path"
-  cp "$found" "$output_path"
-  chmod +x "$output_path"
-}
-
-install_gg() {
-  if ! has_cmd grep || ! has_cmd sed || ! has_cmd find || ! has_cmd basename || ! has_cmd mktemp; then
-    say "Error: this installer requires grep, sed, find, basename and mktemp."
-    exit 1
-  fi
-
-  os_name="$(detect_os)"
-  if [ "$os_name" = "linux" ] && has_cmd dpkg && dpkg --print-architecture >/dev/null 2>&1; then
-    arch_suffix="$(dpkg --print-architecture)"
-  else
-    arch_suffix="$(detect_arch_suffix "$os_name")"
-  fi
-
-  exe_name="$EXE_NAME"
-  output_path="$INSTALL_DIR/$exe_name"
-
-  case "$os_name" in
-    windows)
-      exe_name="gg.exe"
-      output_path="$INSTALL_DIR/$exe_name"
-      ;;
-  esac
-
-  say ""
-  say "Detected OS: $os_name"
-  say "Detected architecture: $arch_suffix"
-  ui_obtaining_latest_release
-
-  release_json="$(mktemp)"
-  download_file "https://api.github.com/repos/$REPO/releases/latest" "$release_json" "latest release metadata" 0
-
-  if [ "$os_name" = "linux" ] && has_cmd dpkg; then
-    if download_deb_package "$arch_suffix" "$release_json"; then
-      rm -f "$release_json"
-      return 0
-    fi
-    say "Debian package not found for this architecture, falling back to archive extract..."
-  fi
-
-  asset_name="$(build_asset_name "$os_name" "$arch_suffix")"
-
-  asset_url="$(
-    grep '"browser_download_url"' "$release_json" |
-      sed 's/.*"browser_download_url": "\(.*\)".*/\1/' |
-      grep -Ei "/${asset_name}$" |
-      head -n 1 || true
-  )"
-
-  if [ -z "$asset_url" ]; then
-    say "Could not find Gateway build: $asset_name"
-    say ""
-    say "Available gg assets:"
-    grep '"browser_download_url"' "$release_json" |
-      sed 's/.*"browser_download_url": "\(.*\)".*/\1/' |
-      grep -Ei '/gg_' |
-      sed 's/^/ - /'
-    rm -f "$release_json"
-    exit 1
-  fi
-
-  tmp_dir="$(mktemp -d)"
-  archive_path="$tmp_dir/$asset_name"
-  extract_dir="$tmp_dir/extract"
-
-  download_file "$asset_url" "$archive_path" "$asset_name" 1
-  extract_gateway "$archive_path" "$extract_dir" "$exe_name" "$output_path"
-
-  rm -rf "$tmp_dir"
-  rm -f "$release_json"
-
-  ui_show_installed_binary "$output_path"
-}
+graft_cli_source_lib ui.sh
+graft_cli_source_lib gateway-installer.sh
 
 ui_show_gateway_intro
-install_gg
+install_gg_to_cwd
 ui_show_done

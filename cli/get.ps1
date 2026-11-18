@@ -8,6 +8,24 @@ $GrftHome = if ($env:GRFT_HOME) { $env:GRFT_HOME } else { Join-Path $env:USERPRO
 $RulesRawBase = "https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/rules"
 $RuleLangs = @('dotnet', 'java', 'kotlin', 'php', 'python', 'ruby', 'typescript-node-nextjs')
 
+$GraftCliDir = $PSScriptRoot
+if (-not $GraftCliDir) {
+    $GraftCliDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+}
+$script:CliDir = $GraftCliDir
+
+$GraftGatewayUiPath = Join-Path (Join-Path $GraftCliDir 'lib') 'ui.ps1'
+$GraftGatewayInstallerPath = Join-Path (Join-Path $GraftCliDir 'lib') 'gateway-installer.ps1'
+if (-not (Test-Path $GraftGatewayUiPath) -or -not (Test-Path $GraftGatewayInstallerPath)) {
+    throw "Missing gateway installer libraries under $GraftCliDir\lib"
+}
+. $GraftGatewayUiPath
+. $GraftGatewayInstallerPath
+$script:GraftGatewayInstallerLibsLoaded = $true
+
+function Initialize-GraftGatewayInstallerLibs {
+}
+
 function Show-GraftcodeIntro {
     Clear-Host
 
@@ -202,129 +220,13 @@ function Install-GraftcodeRules {
     Install-GraftcodeRulesForIde -Ide $IdeChoice
 }
 
-function ConvertTo-WindowsArchSuffix {
-    param([string]$Value)
-
-    if ([string]::IsNullOrWhiteSpace($Value)) {
-        return $null
-    }
-
-    $Normalized = $Value.Trim().ToLowerInvariant()
-    if ($Normalized -match 'arm') {
-        return 'arm64'
-    }
-
-    switch ($Normalized) {
-        { $_ -in 'arm64', 'aarch64' } { return 'arm64' }
-        { $_ -in 'amd64', 'x64', 'x86_64' } { return 'amd64' }
-        { $_ -in 'x86', 'i386', 'i686', 'win32' } { return 'x86' }
-        default { return $null }
-    }
-}
-
-function Get-NativeWindowsArchSuffix {
-    $NativeSignals = @()
-
-    if ($env:PROCESSOR_ARCHITEW6432) {
-        $NativeSignals += $env:PROCESSOR_ARCHITEW6432
-    }
-
-    try {
-        $NativeSignals += (Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction Stop).OSArchitecture
-    }
-    catch {}
-
-    try {
-        $NativeSignals += [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
-    }
-    catch {
-        try {
-            $NativeSignals += [System.Runtime.InteropServices.RuntimeInformation,mscorlib]::OSArchitecture.ToString()
-        }
-        catch {}
-    }
-
-    $Resolved = @()
-    foreach ($Signal in $NativeSignals) {
-        $Suffix = ConvertTo-WindowsArchSuffix $Signal
-        if ($Suffix) {
-            $Resolved += $Suffix
-        }
-    }
-
-    if ($Resolved -contains 'arm64') { return 'arm64' }
-    if ($Resolved -contains 'amd64') { return 'amd64' }
-    if ($Resolved -contains 'x86') { return 'x86' }
-
-    $ProcessArch = ConvertTo-WindowsArchSuffix $env:PROCESSOR_ARCHITECTURE
-    if ($ProcessArch) {
-        return $ProcessArch
-    }
-
-    throw "Unsupported Windows architecture. PROCESSOR_ARCHITECTURE=$($env:PROCESSOR_ARCHITECTURE); PROCESSOR_ARCHITEW6432=$($env:PROCESSOR_ARCHITEW6432)"
-}
-
 function Install-GraftcodeGateway {
-    $Repo = 'grft-dev/graftcode-gateway'
-    $ExeName = 'gg.exe'
-    $OutputPath = Join-Path $PWD $ExeName
-
-    $ArchSuffix = Get-NativeWindowsArchSuffix
-    $AssetName = "gg_windows_${ArchSuffix}.zip"
-
-    Write-Host ""
-    Write-Host "Detected architecture: $ArchSuffix"
-    Write-Host "Fetching latest release from $Repo..."
-
-    $Release = Invoke-RestMethod "https://api.github.com/repos/$Repo/releases/latest"
-
-    $Asset = $Release.assets |
-        Where-Object { $_.name -ieq $AssetName } |
-        Select-Object -First 1
-
-    if (-not $Asset) {
-        $Available = ($Release.assets |
-            Where-Object { $_.name -match '(?i)^gg_windows_' } |
-            ForEach-Object { $_.name }) -join "`n - "
-        throw "Could not find Windows ZIP for architecture '$ArchSuffix' ($AssetName). Available assets:`n - $Available"
-    }
-
-    $ZipPath = Join-Path $env:TEMP $Asset.name
-    Download-FileWithSpinner -Url $Asset.browser_download_url -OutputPath $ZipPath -Label $Asset.name
-
-    Add-Type -AssemblyName System.IO.Compression.FileSystem
-
-    $Zip = [IO.Compression.ZipFile]::OpenRead($ZipPath)
-
-    try {
-        $Entry = $Zip.Entries |
-            Where-Object { $_.Name -ieq $ExeName } |
-            Select-Object -First 1
-
-        if (-not $Entry) {
-            throw "Could not find $ExeName inside $($Asset.name)"
-        }
-
-        if (Test-Path $OutputPath) {
-            Remove-Item $OutputPath -Force
-        }
-
-        [IO.Compression.ZipFileExtensions]::ExtractToFile($Entry, $OutputPath, $true)
-    }
-    finally {
-        $Zip.Dispose()
-
-        if (Test-Path $ZipPath) {
-            Remove-Item $ZipPath -Force
-        }
-    }
-
-    Write-Host ""
-    Write-Host "Installed Graftcode Gateway:" -ForegroundColor Green
-    Write-Host $OutputPath
+    Initialize-GraftGatewayInstallerLibs
+    Install-GraftcodeGatewayToCwd
 }
 
 function Get-PluginArchSuffix {
+    Initialize-GraftGatewayInstallerLibs
     $ArchSuffix = Get-NativeWindowsArchSuffix
 
     switch ($ArchSuffix) {

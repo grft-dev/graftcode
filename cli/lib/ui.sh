@@ -33,6 +33,11 @@ ui_resolve_script_dir() {
 
 ui_load_logo_text() {
   logo_path=""
+  if [ -n "${GRAFT_CLI_DIR:-}" ] && [ -f "$GRAFT_CLI_DIR/assets/logo_ascii.txt" ]; then
+    cat "$GRAFT_CLI_DIR/assets/logo_ascii.txt"
+    return 0
+  fi
+
   script_dir=""
   if script_dir="$(ui_resolve_script_dir)"; then
     if [ -f "$script_dir/assets/logo_ascii.txt" ]; then
