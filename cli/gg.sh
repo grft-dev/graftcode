@@ -6,26 +6,47 @@ EXE_NAME="gg"
 INSTALL_DIR="$PWD"
 CLI_RAW_BASE="${CLI_RAW_BASE:-https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli}"
 
+graft_cli_source_ui_from_url() {
+  if ! command -v curl >/dev/null 2>&1; then
+    echo "Error: curl is required to load installer UI from $CLI_RAW_BASE."
+    exit 1
+  fi
+  ui_tmp="$(mktemp)"
+  curl -fsSL "$CLI_RAW_BASE/lib/ui.sh" -o "$ui_tmp"
+  sed 's/\r$//' "$ui_tmp" > "${ui_tmp}.lf"
+  # shellcheck source=/dev/null
+  . "${ui_tmp}.lf"
+  rm -f "$ui_tmp" "${ui_tmp}.lf"
+}
+
+graft_cli_source_ui_from_file() {
+  ui_path="$1"
+  ui_local="$(mktemp)"
+  sed 's/\r$//' "$ui_path" > "$ui_local"
+  # shellcheck source=/dev/null
+  . "$ui_local"
+  rm -f "$ui_local"
+}
+
 graft_cli_source_ui() {
+  if [ -n "${GRAFT_CLI_DIR:-}" ] && [ -f "$GRAFT_CLI_DIR/lib/ui.sh" ]; then
+    graft_cli_source_ui_from_file "$GRAFT_CLI_DIR/lib/ui.sh"
+    return
+  fi
+
   case "$0" in
     -|sh|bash)
-      if ! command -v curl >/dev/null 2>&1; then
-        echo "Error: curl is required to load installer UI when running from a pipe."
-        exit 1
-      fi
-      ui_tmp="$(mktemp)"
-      curl -fsSL "$CLI_RAW_BASE/lib/ui.sh" -o "$ui_tmp"
-      # shellcheck source=/dev/null
-      . "$ui_tmp"
-      rm -f "$ui_tmp"
+      graft_cli_source_ui_from_url
       ;;
     *)
       script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
-      ui_local="$(mktemp)"
-      sed 's/\r$//' "$script_dir/lib/ui.sh" > "$ui_local"
-      # shellcheck source=/dev/null
-      . "$ui_local"
-      rm -f "$ui_local"
+      if [ -f "$script_dir/lib/ui.sh" ]; then
+        graft_cli_source_ui_from_file "$script_dir/lib/ui.sh"
+      elif [ -n "${GRAFT_CLI_DIR:-}" ] && [ -f "$GRAFT_CLI_DIR/lib/ui.sh" ]; then
+        graft_cli_source_ui_from_file "$GRAFT_CLI_DIR/lib/ui.sh"
+      else
+        graft_cli_source_ui_from_url
+      fi
       ;;
   esac
 }
