@@ -49,7 +49,7 @@ EOF
   say "  2. Download Graftcode Gateway"
   say "     - gateway for your processor"
   say "  3. Download Graftcode Plugins"
-  say "     - RabbitMQ and Azure Service Bus plugins for the gateway"
+  say "     - messaging plugins for the gateway (see plugins.manifest.json)"
   if is_grft_home_present; then
     say "  4. Uninstall Graftcode CLI"
     say "     - remove ~/.grft and PATH entry"
@@ -315,7 +315,6 @@ install_plugin_files() {
   extract_dir="$1"
   install_dir="$2"
   plugin_label="$3"
-  shift 3
 
   mkdir -p "$install_dir"
   installed=""
@@ -329,14 +328,13 @@ install_plugin_files() {
     done
   fi
 
-  for pattern in "$@"; do
-    found="$(find "$extract_dir" -maxdepth 2 -type f -name "$pattern" -print | head -n 1 || true)"
-    if [ -n "$found" ]; then
-      cp "$found" "$install_dir/"
+  if has_cmd find; then
+    for file in $(find "$extract_dir" -maxdepth 4 -type f \( -name '*.so' -o -name '*.dylib' \) 2>/dev/null); do
+      cp "$file" "$install_dir/"
       installed="$installed
- - $(basename "$found")"
-    fi
-  done
+ - $(basename "$file")"
+    done
+  fi
 
   if [ -z "$installed" ]; then
     say "Could not find $plugin_label plugin binaries inside archive."
@@ -351,14 +349,14 @@ install_plugin_files() {
 install_plugin() {
   plugin_name="$1"
   plugin_label="$2"
-  shift 2
 
   if ! has_cmd tar || ! has_cmd find || ! has_cmd basename || ! has_cmd mktemp || ! has_cmd grep || ! has_cmd sed; then
     say "Error: this installer requires tar, find, basename, mktemp, grep and sed."
     exit 1
   fi
 
-  plugins_repo="grft-dev/graftcode-plugins"
+  manifest="$(graft_plugin_manifest_path)"
+  plugins_repo="$(graft_plugins_repo_from_manifest "$manifest")"
   install_dir="$PWD"
   os_name="$(detect_plugin_os)"
   arch_name="$(detect_plugin_arch)"
@@ -403,7 +401,7 @@ install_plugin() {
   say "Installing plugin files to:"
   say "$install_dir"
   say ""
-  install_plugin_files "$extract_dir" "$install_dir" "$plugin_label" "$@"
+  install_plugin_files "$extract_dir" "$install_dir" "$plugin_label"
 
   rm -rf "$tmp_dir"
   rm -f "$release_json"
@@ -414,6 +412,21 @@ install_plugin() {
 }
 
 install_plugins() {
+  if [ -n "${GRAFT_CLI_DIR:-}" ] && [ -f "$GRAFT_CLI_DIR/lib/plugin-manifest.sh" ]; then
+    graft_cli_source_sh_file "$GRAFT_CLI_DIR/lib/plugin-manifest.sh"
+  else
+    _plug_lib_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+    graft_cli_source_sh_file "$_plug_lib_dir/lib/plugin-manifest.sh"
+  fi
+
+  graft_cli_ensure_plugin_manifest_file
+
+  manifest="$(graft_plugin_manifest_path)"
+  if [ ! -f "$manifest" ]; then
+    say "Error: missing plugins.manifest.json"
+    exit 1
+  fi
+
   plugin=""
   if [ "$#" -ge 1 ]; then
     plugin="$(echo "$1" | tr 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' 'abcdefghijklmnopqrstuvwxyz')"
@@ -422,31 +435,30 @@ install_plugins() {
   if [ -z "$plugin" ]; then
     if ! grft_is_interactive_tty; then
       say "No interactive terminal — specify a plugin, e.g.: grft get plugin rabbitmq"
+      say "Available: $(graft_plugin_help_names "$manifest")"
       show_help
       exit 2
     fi
     say ""
     say "Choose plugin:"
-    say "  1. RabbitMQ"
-    say "  2. Azure Service Bus"
+    graft_plugin_print_menu "$manifest"
     say ""
-    plugin="$(read_choice_set "1 2" "1/2")"
+    menu_choices="$(graft_plugin_menu_choices "$manifest")"
+    choice_hint="$(echo "$menu_choices" | sed 's/ /,/g')"
+    plugin="$(read_choice_set "$menu_choices" "$choice_hint")"
   fi
 
-  case "$plugin" in
-    rabbitmq|rabbit|1)
-      install_plugin "rabbitmq" "RabbitMQ" \
-        libRabbitmqPlugin.so libRabbitmqPlugin.dylib RabbitmqPlugin.dll
-      ;;
-    servicebus|service-bus|azure-servicebus|asb|2)
-      install_plugin "servicebus" "Service Bus" \
-        libServiceBusPlugin.so libServiceBusPlugin.dylib ServiceBusPlugin.dll
-      ;;
-    *)
-      say "Unknown plugin '$1'. Use: rabbitmq, servicebus"
-      exit 1
-      ;;
-  esac
+  resolved="$(graft_plugin_resolve_id "$manifest" "$plugin")" || {
+    say "Unknown plugin '$1'. Available: $(graft_plugin_help_names "$manifest")"
+    exit 1
+  }
+
+  label="$(graft_plugin_label_for_id "$manifest" "$resolved")"
+  if [ -z "$label" ]; then
+    label="$resolved"
+  fi
+
+  install_plugin "$resolved" "$label"
 }
 
 script_dir() {
@@ -521,7 +533,7 @@ show_help() {
   say "  grft get                      Interactive installer"
   say "  grft get gg                   Download Graftcode Gateway"
   say "  grft get rules <ide>          Install AI rules (cursor, claude, copilot, ...)"
-  say "  grft get plugin <name>        Install plugin (rabbitmq, servicebus)"
+  say "  grft get plugin <name>        Install gateway plugin (plugins.manifest.json)"
   say "  grft uninstall                Remove ~/.grft and PATH entry"
   say "  grft version                  Show CLI version"
   say ""

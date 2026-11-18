@@ -21,6 +21,7 @@ if (-not (Test-Path $GraftGatewayUiPath) -or -not (Test-Path $GraftGatewayInstal
 }
 . $GraftGatewayUiPath
 . $GraftGatewayInstallerPath
+. (Join-Path (Join-Path $GraftCliDir 'lib') 'plugin-manifest.ps1')
 $script:GraftGatewayInstallerLibsLoaded = $true
 
 function Initialize-GraftGatewayInstallerLibs {
@@ -60,7 +61,7 @@ function Show-GraftcodeIntro {
     Write-Host "  2. Download Graftcode Gateway"
     Write-Host "     - gateway for your processor"
     Write-Host "  3. Download Graftcode Plugins"
-    Write-Host "     - RabbitMQ and Azure Service Bus plugins for the gateway"
+    Write-Host "     - messaging plugins for the gateway (plugins.manifest.json)"
     if (Test-GrftHomePresent) {
         Write-Host "  4. Uninstall Graftcode CLI"
         Write-Host "     - remove ~/.grft and PATH entry"
@@ -257,8 +258,7 @@ function Install-GraftcodePluginFiles {
     param(
         [string]$ExtractDir,
         [string]$TargetDir,
-        [string]$PluginLabel,
-        [string[]]$Patterns
+        [string]$PluginLabel
     )
 
     if (-not (Test-Path $TargetDir)) {
@@ -275,18 +275,14 @@ function Install-GraftcodePluginFiles {
         }
     }
 
-    foreach ($Pattern in $Patterns) {
-        $Match = Get-ChildItem -Path $ExtractDir -Recurse -File -Filter $Pattern -ErrorAction SilentlyContinue |
-            Select-Object -First 1
-
-        if ($Match) {
-            $Destination = Join-Path $TargetDir $Match.Name
-            if (-not ($Installed -contains $Match.Name)) {
-                Copy-Item -Path $Match.FullName -Destination $Destination -Force
-                $Installed += $Match.Name
+    Get-ChildItem -Path $ExtractDir -Recurse -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.Extension -in '.so', '.dylib' } |
+        ForEach-Object {
+            if ($Installed -notcontains $_.Name) {
+                Copy-Item -Path $_.FullName -Destination (Join-Path $TargetDir $_.Name) -Force
+                $Installed += $_.Name
             }
         }
-    }
 
     if ($Installed.Count -eq 0) {
         $Available = (Get-ChildItem -Path $ExtractDir -Recurse -File | ForEach-Object { $_.FullName }) -join "`n - "
@@ -299,11 +295,10 @@ function Install-GraftcodePluginFiles {
 function Install-GraftcodePlugin {
     param(
         [string]$PluginName,
-        [string]$PluginLabel,
-        [string[]]$Patterns
+        [string]$PluginLabel
     )
 
-    $Repo = 'grft-dev/graftcode-plugins'
+    $Repo = Get-GraftPluginsRepo
     $InstallDir = $PWD.Path
     $OsName = 'windows'
     $ArchName = Get-PluginArchSuffix
@@ -345,8 +340,7 @@ function Install-GraftcodePlugin {
         $Installed = Install-GraftcodePluginFiles `
             -ExtractDir $ExtractDir `
             -TargetDir $InstallDir `
-            -PluginLabel $PluginLabel `
-            -Patterns $Patterns
+            -PluginLabel $PluginLabel
 
         Write-Host ""
         foreach ($FileName in $Installed) {
@@ -367,39 +361,38 @@ function Install-GraftcodePlugin {
 function Install-GraftcodePlugins {
     param([string]$Plugin = '')
 
-    $Resolved = $Plugin.ToLowerInvariant()
+    $Resolved = $null
+    if ($Plugin) {
+        $Resolved = Resolve-GraftPluginId -Input $Plugin
+    }
 
     if (-not $Resolved) {
-        if (-not (Test-GrftInteractiveConsole)) {
-            Write-Host 'Specify a plugin, e.g.: grft get plugin rabbitmq'
-            Exit-GrftNonInteractive
+        if (-not $Plugin) {
+            if (-not (Test-GrftInteractiveConsole)) {
+                Write-Host 'Specify a plugin, e.g.: grft get plugin rabbitmq'
+                Write-Host "Available: $(Get-GraftPluginHelpNames)"
+                Exit-GrftNonInteractive
+            }
+            Write-Host ""
+            Write-Host "Choose plugin:" -ForegroundColor Yellow
+            Show-GraftPluginMenu
+            Write-Host ""
+            $Choices = Get-GraftPluginMenuChoices
+            $Prompt = "Enter choice [$($Choices -join '/')]"
+            $PluginChoice = Read-MenuChoice -Prompt $Prompt -AllowedChoices $Choices
+            $Resolved = Resolve-GraftPluginId -Input $PluginChoice
         }
-        Write-Host ""
-        Write-Host "Choose plugin:" -ForegroundColor Yellow
-        Write-Host "  1. RabbitMQ"
-        Write-Host "  2. Azure Service Bus"
-        Write-Host ""
-        $PluginChoice = Read-MenuChoice -Prompt "Enter choice [1/2]" -AllowedChoices @('1', '2')
-        $Resolved = $PluginChoice
+        else {
+            throw "Unknown plugin '$Plugin'. Available: $(Get-GraftPluginHelpNames)"
+        }
     }
 
-    switch ($Resolved) {
-        { $_ -in @('rabbitmq', 'rabbit', '1') } {
-            Install-GraftcodePlugin `
-                -PluginName 'rabbitmq' `
-                -PluginLabel 'RabbitMQ' `
-                -Patterns @('libRabbitmqPlugin.so', 'libRabbitmqPlugin.dylib', 'RabbitmqPlugin.dll')
-        }
-        { $_ -in @('servicebus', 'service-bus', 'azure-servicebus', 'asb', '2') } {
-            Install-GraftcodePlugin `
-                -PluginName 'servicebus' `
-                -PluginLabel 'Service Bus' `
-                -Patterns @('libServiceBusPlugin.so', 'libServiceBusPlugin.dylib', 'ServiceBusPlugin.dll')
-        }
-        default {
-            throw "Unknown plugin '$Plugin'. Use: rabbitmq, servicebus"
-        }
+    if (-not $Resolved) {
+        throw "Could not resolve plugin choice."
     }
+
+    $Label = Get-GraftPluginLabel -PluginId $Resolved
+    Install-GraftcodePlugin -PluginName $Resolved -PluginLabel $Label
 }
 
 function Test-GrftHomePresent {
@@ -540,7 +533,13 @@ function Show-GrftHelp {
     Write-Host '  grft get                      Interactive installer'
     Write-Host '  grft get gg                   Download Graftcode Gateway'
     Write-Host '  grft get rules <ide>          Install AI rules (cursor, claude, copilot, ...)'
-    Write-Host '  grft get plugin <name>        Install plugin (rabbitmq, servicebus)'
+    try {
+        $PluginNames = Get-GraftPluginHelpNames
+    }
+    catch {
+        $PluginNames = 'see plugins.manifest.json'
+    }
+    Write-Host "  grft get plugin <name>        Install plugin ($PluginNames)"
     Write-Host '  grft uninstall                Remove ~/.grft and PATH entry'
     Write-Host '  grft version                  Show CLI version'
     Write-Host ""

@@ -93,4 +93,6 @@ iwr https://grft.dev/get | iex
 
 ## Plugin names for `grft get plugin`
 
-`rabbitmq`, `servicebus` (aliases: `service-bus`, `azure-servicebus`, `asb`)
+Source of truth: [`plugins.manifest.json`](plugins.manifest.json) (sync with `scripts/sync-plugins-manifest.ps1` before push).
+
+Ids on current manifest: `kafka`, `pubsub`, `rabbitmq`, `servicebus`, `sqs`, plus aliases per entry (e.g. `asb` → `servicebus`).
