@@ -20,6 +20,5 @@ $GatewayPath = Join-Path (Join-Path $CliDir 'lib') 'gateway-installer.ps1'
 . $UiPath
 . $GatewayPath
 
-Show-UiGatewayIntro
 Install-GraftcodeGatewayToCwd
 Show-UiDone

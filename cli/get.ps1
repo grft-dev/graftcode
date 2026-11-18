@@ -207,7 +207,9 @@ function Install-GraftcodeRulesForIde {
             Write-Host (Join-Path $PWD ".aider.conf.yml")
         }
         default {
-            throw "Unknown IDE '$Ide'. Use: cursor, claude, copilot, cline, windsurf, continue, aider"
+            Exit-UiUserError "Unknown IDE '$Ide'." @(
+                'Use: cursor, claude, copilot, cline, windsurf, continue, aider'
+            )
         }
     }
 }
@@ -364,12 +366,22 @@ function Install-GraftcodePlugins {
             $Resolved = Resolve-GraftPluginId -PluginQuery $PluginChoice
         }
         else {
-            throw "Unknown plugin '$Plugin'. Available: $(Get-GraftPluginHelpNames)"
+            $details = @(
+                "Available plugins: $(Get-GraftPluginHelpNames)"
+                'Example: grft get plugin rabbitmq'
+            )
+            $hint = Get-GraftPluginSuggestion -PluginQuery $Plugin
+            if ($hint) {
+                $details = @("Did you mean '$hint'?") + $details
+            }
+            Exit-UiUserError "Unknown plugin '$Plugin'." $details
         }
     }
 
     if (-not $Resolved) {
-        throw "Could not resolve plugin choice."
+        Exit-UiUserError 'Could not resolve plugin choice.' @(
+            "Available plugins: $(Get-GraftPluginHelpNames)"
+        )
     }
 
     $Label = Get-GraftPluginLabel -PluginId $Resolved
@@ -594,7 +606,9 @@ function Invoke-GrftCommand {
 
     if ($Command -ne 'get') {
         Show-GrftHelp
-        throw "Unknown command '$($CliArgs[0])'. Try: grft get ..., grft uninstall, grft version"
+        Exit-UiUserError "Unknown command '$($CliArgs[0])'." @(
+            'Try: grft get ..., grft uninstall, grft version'
+        )
     }
 
     if ($CliArgs.Count -eq 1) {
@@ -639,7 +653,9 @@ function Invoke-GrftCommand {
         }
         default {
             Show-GrftHelp
-            throw "Unknown get target '$($CliArgs[1])'. Use: gg, rules, plugin"
+            Exit-UiUserError "Unknown get target '$($CliArgs[1])'." @(
+                'Use: grft get gg | rules <ide> | plugin <name>'
+            )
         }
     }
 
@@ -648,5 +664,12 @@ function Invoke-GrftCommand {
 }
 
 $ForwardArgs = @($args)
-Update-GrftIfNeeded -ForwardArgs $ForwardArgs
-Invoke-GrftCommand -CliArgs $ForwardArgs
+try {
+    Update-GrftIfNeeded -ForwardArgs $ForwardArgs
+    Invoke-GrftCommand -CliArgs $ForwardArgs
+}
+catch {
+    Write-Host ''
+    Write-Host $_.Exception.Message -ForegroundColor Red
+    exit 1
+}

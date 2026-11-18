@@ -153,6 +153,7 @@ function Install-GraftcodeGatewayToCwd {
   $ArchSuffix = Get-NativeWindowsArchSuffix
   $AssetName = "gg_windows_${ArchSuffix}.zip"
 
+  Show-UiGatewayIntro
   Ui-SayPlatformLine -Os 'windows' -Cpu $ArchSuffix
   Ui-ObtainingLatestRelease
 

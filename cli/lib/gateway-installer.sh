@@ -255,6 +255,9 @@ install_gg_to_cwd() {
       ;;
   esac
 
+  if command -v ui_show_gateway_intro >/dev/null 2>&1; then
+    ui_show_gateway_intro
+  fi
   if command -v ui_say_platform_line >/dev/null 2>&1; then
     ui_say_platform_line "$os_name" "$arch_suffix"
   else

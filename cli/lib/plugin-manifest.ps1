@@ -58,6 +58,35 @@ function Get-GraftPluginHelpNames {
     return ($manifest.plugins | ForEach-Object { $_.id }) -join ', '
 }
 
+function Get-GraftPluginSuggestion {
+    param([string]$PluginQuery)
+
+    $q = $PluginQuery.Trim().ToLowerInvariant()
+    if (-not $q) { return $null }
+
+    $manifest = Get-GraftPluginManifest
+    $hits = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+
+    foreach ($p in $manifest.plugins) {
+        $id = $p.id.ToLowerInvariant()
+        if ($id.StartsWith($q) -or $q.StartsWith($id)) {
+            [void]$hits.Add($p.id)
+        }
+        foreach ($a in @($p.aliases)) {
+            if (-not $a) { continue }
+            $al = $a.ToLowerInvariant()
+            if ($al.StartsWith($q) -or $q.StartsWith($al)) {
+                [void]$hits.Add($p.id)
+            }
+        }
+    }
+
+    if ($hits.Count -eq 1) {
+        return ($hits | Select-Object -First 1)
+    }
+    return $null
+}
+
 function Show-GraftPluginMenu {
     $manifest = Get-GraftPluginManifest
     $i = 1

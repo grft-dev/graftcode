@@ -252,3 +252,17 @@ function Show-UiDone {
   Write-Host ''
   Write-Host 'Done.' -ForegroundColor Green
 }
+
+function Exit-UiUserError {
+  param(
+    [string]$Headline,
+    [string[]]$DetailLines = @()
+  )
+
+  Write-Host ''
+  Write-Host $Headline -ForegroundColor Red
+  foreach ($line in $DetailLines) {
+    Write-Host $line
+  }
+  exit 1
+}

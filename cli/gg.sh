@@ -58,6 +58,5 @@ graft_cli_source_lib() {
 graft_cli_source_lib ui.sh
 graft_cli_source_lib gateway-installer.sh
 
-ui_show_gateway_intro
 install_gg_to_cwd
 ui_show_done
