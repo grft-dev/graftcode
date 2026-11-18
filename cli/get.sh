@@ -356,7 +356,7 @@ install_plugin_files() {
     exit 1
   fi
 
-  say "$installed"
+  printf '%s\n' "$installed"
 }
 
 install_plugin() {
@@ -368,20 +368,31 @@ install_plugin() {
     exit 1
   fi
 
+  graft_cli_ensure_gateway_installer_libs
+
   manifest="$(graft_plugin_manifest_path)"
   plugins_repo="$(graft_plugins_repo_from_manifest "$manifest")"
   install_dir="$PWD"
   os_name="$(detect_plugin_os)"
   arch_name="$(detect_plugin_arch)"
+  cpu_display="$arch_name"
+  case "$arch_name" in
+    x86_64) cpu_display="amd64" ;;
+  esac
   asset_name="${plugin_name}-${os_name}-${arch_name}.tar.gz"
 
-  say ""
-  say "Detected OS: $os_name"
-  say "Detected architecture: $arch_name"
-  say "Fetching latest release from $plugins_repo..."
+  if command -v ui_show_gateway_intro >/dev/null 2>&1; then
+    ui_show_gateway_intro
+    ui_say_platform_line "$os_name" "$cpu_display"
+    ui_obtaining_latest_release
+  fi
 
   release_json="$(mktemp)"
-  download_file "https://api.github.com/repos/$plugins_repo/releases/latest" "$release_json" "latest release metadata"
+  if command -v ui_download_file >/dev/null 2>&1; then
+    ui_download_file "https://api.github.com/repos/$plugins_repo/releases/latest" "$release_json" "latest release metadata" 0
+  else
+    download_file "https://api.github.com/repos/$plugins_repo/releases/latest" "$release_json" "latest release metadata"
+  fi
 
   asset_url="$(
     grep '"browser_download_url"' "$release_json" |
@@ -406,22 +417,28 @@ install_plugin() {
   archive_path="$tmp_dir/$asset_name"
   extract_dir="$tmp_dir/extract"
 
-  download_file "$asset_url" "$archive_path" "$asset_name"
+  if command -v ui_download_file >/dev/null 2>&1; then
+    ui_download_file "$asset_url" "$archive_path" "$asset_name" 1
+  else
+    download_file "$asset_url" "$archive_path" "$asset_name"
+  fi
   mkdir -p "$extract_dir"
   tar -xzf "$archive_path" -C "$extract_dir"
 
-  say ""
-  say "Installing plugin files to:"
-  say "$install_dir"
-  say ""
-  install_plugin_files "$extract_dir" "$install_dir" "$plugin_label"
+  installed_list="$(install_plugin_files "$extract_dir" "$install_dir" "$plugin_label")"
 
   rm -rf "$tmp_dir"
   rm -f "$release_json"
 
-  say ""
-  say "Installed Graftcode $plugin_label plugin in:"
-  say "$install_dir"
+  if command -v ui_show_plugin_installed >/dev/null 2>&1; then
+    ui_show_plugin_installed "$plugin_label" "$install_dir" "$installed_list"
+  else
+    say ""
+    say "$installed_list"
+    say ""
+    say "Installed Graftcode $plugin_label plugin in:"
+    say "$install_dir"
+  fi
 }
 
 install_plugins() {

@@ -215,6 +215,18 @@ ui_show_installed_deb() {
   fi
 }
 
+ui_show_plugin_installed() {
+  plugin_label="$1"
+  install_dir="$2"
+  installed_list="$3"
+
+  ui_say ""
+  ui_say "$installed_list"
+  ui_say ""
+  ui_say "Installed Graftcode $plugin_label plugin in:"
+  ui_say "$install_dir"
+}
+
 ui_show_done() {
   ui_say ""
   ui_say "Done."

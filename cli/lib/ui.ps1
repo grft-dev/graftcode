@@ -232,6 +232,22 @@ function Show-UiGatewayInstalled {
   Write-Host 'Run: gg.exe <your module>' -ForegroundColor White
 }
 
+function Show-UiPluginInstalled {
+  param(
+    [string]$PluginLabel,
+    [string]$InstallDir,
+    [string[]]$FileNames
+  )
+
+  Write-Host ''
+  foreach ($FileName in $FileNames) {
+    Write-Host " - $FileName" -ForegroundColor Green
+  }
+  Write-Host ''
+  Write-Host "Installed Graftcode $PluginLabel plugin in:" -ForegroundColor Green
+  Write-Host $InstallDir
+}
+
 function Show-UiDone {
   Write-Host ''
   Write-Host 'Done.' -ForegroundColor Green

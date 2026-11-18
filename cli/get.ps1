@@ -293,13 +293,13 @@ function Install-GraftcodePlugin {
     $Repo = Get-GraftPluginsRepo
     $InstallDir = $PWD.Path
     $OsName = 'windows'
+    $CpuDisplay = Get-NativeWindowsArchSuffix
     $ArchName = Get-PluginArchSuffix
     $AssetName = "$PluginName-$OsName-$ArchName.tar.gz"
 
-    Write-Host ""
-    Write-Host "Detected OS: $OsName"
-    Write-Host "Detected architecture: $ArchName"
-    Write-Host "Fetching latest release from $Repo..."
+    Show-UiGatewayIntro
+    Ui-SayPlatformLine -Os $OsName -Cpu $CpuDisplay
+    Ui-ObtainingLatestRelease
 
     $Release = Invoke-RestMethod "https://api.github.com/repos/$Repo/releases/latest"
 
@@ -319,29 +319,18 @@ function Install-GraftcodePlugin {
 
     try {
         $ArchivePath = Join-Path $TempDir $Asset.name
-        Download-FileWithSpinner -Url $Asset.browser_download_url -OutputPath $ArchivePath -Label $Asset.name
+        Ui-DownloadFile -Url $Asset.browser_download_url -OutputPath $ArchivePath -Label $Asset.name -ShowProgress
 
         $ExtractDir = Join-Path $TempDir 'extract'
         New-Item -ItemType Directory -Path $ExtractDir -Force | Out-Null
         tar -xzf $ArchivePath -C $ExtractDir
-
-        Write-Host ""
-        Write-Host "Installing plugin files to:" -ForegroundColor Yellow
-        Write-Host $InstallDir
 
         $Installed = Install-GraftcodePluginFiles `
             -ExtractDir $ExtractDir `
             -TargetDir $InstallDir `
             -PluginLabel $PluginLabel
 
-        Write-Host ""
-        foreach ($FileName in $Installed) {
-            Write-Host " - $FileName" -ForegroundColor Green
-        }
-
-        Write-Host ""
-        Write-Host "Installed Graftcode $PluginLabel plugin in:" -ForegroundColor Green
-        Write-Host $InstallDir
+        Show-UiPluginInstalled -PluginLabel $PluginLabel -InstallDir $InstallDir -FileNames $Installed
     }
     finally {
         if (Test-Path $TempDir) {
