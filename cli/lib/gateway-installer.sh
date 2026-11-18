@@ -255,9 +255,11 @@ install_gg_to_cwd() {
       ;;
   esac
 
-  gi_say ""
-  gi_say "Detected OS: $os_name"
-  gi_say "Detected architecture: $arch_suffix"
+  if command -v ui_say_platform_line >/dev/null 2>&1; then
+    ui_say_platform_line "$os_name" "$arch_suffix"
+  else
+    gi_say "OS: $os_name | CPU: $arch_suffix"
+  fi
   if command -v ui_obtaining_latest_release >/dev/null 2>&1; then
     ui_obtaining_latest_release
   else

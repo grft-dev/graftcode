@@ -3,6 +3,8 @@
 
 CLI_RAW_BASE="${CLI_RAW_BASE:-https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli}"
 UI_BRAND_RGB="${UI_BRAND_RGB:-218;26;96}"
+UI_PROGRESS_RGB="${UI_PROGRESS_RGB:-$UI_BRAND_RGB}"
+UI_PROGRESS_WIDTH="${UI_PROGRESS_WIDTH:-30}"
 
 ui_has_cmd() {
   command -v "$1" >/dev/null 2>&1
@@ -94,16 +96,73 @@ ui_show_gateway_intro() {
   ui_maybe_clear
   ui_show_gateway_logo
   echo ""
-  ui_say "Graftcode Gateway installer"
-  ui_say ""
-  ui_say "This script downloads Graftcode Gateway (gg) for your platform."
-  ui_say "On Debian/Ubuntu it saves gg.deb here — install with: dpkg -i gg.deb"
-  ui_say "On other systems it extracts ./gg into the current directory."
-  ui_say ""
+}
+
+ui_say_platform_line() {
+  ui_say "OS: $1 | CPU: $2"
 }
 
 ui_obtaining_latest_release() {
-  ui_say "Obtaining latest stable release..."
+  ui_say "Obtaining latest stable release"
+}
+
+ui_write_bracket_progress() {
+  pct="$1"
+  width="$UI_PROGRESS_WIDTH"
+  filled=$((pct * width / 100))
+  empty=$((width - filled))
+  bar=""
+  i=0
+  while [ "$i" -lt "$filled" ]; do
+    bar="${bar}#"
+    i=$((i + 1))
+  done
+  i=0
+  while [ "$i" -lt "$empty" ]; do
+    bar="${bar}-"
+    i=$((i + 1))
+  done
+  if ui_is_tty; then
+    printf '\r\033[38;2;%sm[%s]\033[0m %s%%' "$UI_PROGRESS_RGB" "$bar" "$pct"
+  fi
+}
+
+ui_download_with_bracket_progress() {
+  url="$1"
+  output="$2"
+
+  if ! ui_has_cmd curl; then
+    ui_say "Error: curl is required for download progress."
+    exit 1
+  fi
+
+  total="$(curl -fsSIL "$url" | awk 'tolower($0) ~ /^content-length:/ { print $2; exit }' | tr -d '\r')"
+  total="${total:-0}"
+
+  parent="$(dirname "$output")"
+  if [ -n "$parent" ] && [ "$parent" != "." ]; then
+    mkdir -p "$parent"
+  fi
+  : >"$output"
+
+  curl -fsSL "$url" -o "$output" &
+  curl_pid=$!
+
+  while kill -0 "$curl_pid" 2>/dev/null; do
+    if [ -f "$output" ] && [ "$total" -gt 0 ] 2>/dev/null; then
+      size="$(wc -c <"$output" | tr -d ' ')"
+      pct=$((size * 100 / total))
+      if [ "$pct" -gt 100 ]; then pct=100; fi
+      ui_write_bracket_progress "$pct"
+    fi
+    sleep 0.15
+  done
+
+  wait "$curl_pid" || exit 1
+  ui_write_bracket_progress 100
+  if ui_is_tty; then
+    printf '\n'
+  fi
 }
 
 ui_download_file() {
@@ -112,20 +171,17 @@ ui_download_file() {
   label="$3"
   show_progress="${4:-0}"
 
+  if [ "$show_progress" = 1 ] && ui_wants_download_progress 1; then
+    ui_download_with_bracket_progress "$url" "$output"
+    return 0
+  fi
+
   ui_say "Downloading $label..."
 
   if ui_has_cmd curl; then
-    if ui_wants_download_progress "$show_progress"; then
-      curl -fL# "$url" -o "$output"
-    else
-      curl -fsSL "$url" -o "$output"
-    fi
+    curl -fsSL "$url" -o "$output"
   elif ui_has_cmd wget; then
-    if ui_wants_download_progress "$show_progress"; then
-      wget --show-progress -O "$output" "$url"
-    else
-      wget -q -O "$output" "$url"
-    fi
+    wget -q -O "$output" "$url"
   elif ui_has_cmd busybox; then
     busybox wget -q -O "$output" "$url"
   else

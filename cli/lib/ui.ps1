@@ -44,6 +44,8 @@ function Ui-MaybeClearHost {
 }
 
 $script:UiBrandRgb = '218;26;96'
+$script:UiProgressRgb = $script:UiBrandRgb
+$script:UiProgressBarWidth = 30
 
 function Write-UiBrandLogo {
   param([string]$Text)
@@ -82,14 +84,87 @@ function Show-UiGatewayIntro {
   Ui-MaybeClearHost
   Write-UiBrandLogo (Get-UiGatewayLogoText)
   Ui-Say ''
-  Ui-Say 'Graftcode Gateway installer'
-  Ui-Say ''
-  Ui-Say 'This script downloads and installs Graftcode Gateway (gg.exe) in the current directory.'
-  Ui-Say ''
+}
+
+function Ui-SayPlatformLine {
+  param(
+    [string]$Os,
+    [string]$Cpu
+  )
+
+  Ui-Say "OS: $Os | CPU: $Cpu"
 }
 
 function Ui-ObtainingLatestRelease {
-  Ui-Say 'Obtaining latest stable release...'
+  Ui-Say 'Obtaining latest stable release'
+}
+
+function Write-UiBracketProgress {
+  param([int]$Percent)
+
+  $Percent = [Math]::Max(0, [Math]::Min(100, $Percent))
+  $width = $script:UiProgressBarWidth
+  $filled = [int][Math]::Round($width * $Percent / 100.0)
+  $empty = $width - $filled
+  $bar = ('#' * $filled) + ('-' * $empty)
+
+  if (-not (Test-UiIsInteractive)) {
+    return
+  }
+
+  $esc = [char]0x1B
+  $on = "${esc}[38;2;$($script:UiProgressRgb)m"
+  $off = "${esc}[0m"
+  Write-Host -NoNewline ("`r${on}[$bar]${off} ${Percent}%")
+}
+
+function Invoke-UiHttpDownloadWithBracketProgress {
+  param(
+    [string]$Url,
+    [string]$OutputPath
+  )
+
+  $request = [System.Net.HttpWebRequest]::Create($Url)
+  $request.UserAgent = 'grft-cli'
+  $request.AllowAutoRedirect = $true
+
+  $response = $request.GetResponse()
+  try {
+    $total = $response.ContentLength
+    $stream = $response.GetResponseStream()
+    $parent = Split-Path -Parent $OutputPath
+    if ($parent -and -not (Test-Path $parent)) {
+      New-Item -ItemType Directory -Path $parent -Force | Out-Null
+    }
+
+    $file = [System.IO.File]::Open($OutputPath, [System.IO.FileMode]::Create, [System.IO.FileAccess]::Write)
+    try {
+      $buffer = New-Object byte[] 65536
+      $done = [long]0
+      while ($true) {
+        $read = $stream.Read($buffer, 0, $buffer.Length)
+        if ($read -le 0) { break }
+        $file.Write($buffer, 0, $read)
+        $done += $read
+        if ($total -gt 0) {
+          Write-UiBracketProgress -Percent ([int][Math]::Floor(100.0 * $done / $total))
+        }
+      }
+      if ($total -le 0) {
+        Write-UiBracketProgress -Percent 100
+      }
+    }
+    finally {
+      $file.Close()
+    }
+  }
+  finally {
+    $response.Close()
+  }
+
+  if (Test-UiIsInteractive) {
+    Write-Host ''
+  }
 }
 
 function Ui-DownloadFile {
@@ -100,7 +175,15 @@ function Ui-DownloadFile {
     [switch]$ShowProgress
   )
 
-  Ui-Say "Downloading $Label..."
+  $useBracket = $ShowProgress -and (Test-UiIsInteractive)
+  if (-not $useBracket) {
+    Ui-Say "Downloading $Label..."
+  }
+
+  if ($useBracket) {
+    Invoke-UiHttpDownloadWithBracketProgress -Url $Url -OutputPath $OutputPath
+    return
+  }
 
   $curl = Get-Command curl.exe -ErrorAction SilentlyContinue
   if ($curl) {
@@ -134,7 +217,9 @@ function Ui-DownloadFile {
     Invoke-WebRequest -Uri $Url -OutFile $OutputPath
   }
 
-  Ui-Say "Downloaded $Label"
+  if (-not $ShowProgress) {
+    Ui-Say "Downloaded $Label"
+  }
 }
 
 function Show-UiGatewayInstalled {
