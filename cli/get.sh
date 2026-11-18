@@ -209,6 +209,12 @@ install_rules() {
     return 0
   fi
 
+  if ! grft_is_interactive_tty; then
+    say "No interactive terminal — specify an IDE, e.g.: grft get rules cursor"
+    show_help
+    exit 2
+  fi
+
   say ""
   say "Choose IDE:"
   say "  1. Cursor"
@@ -414,6 +420,11 @@ install_plugins() {
   fi
 
   if [ -z "$plugin" ]; then
+    if ! grft_is_interactive_tty; then
+      say "No interactive terminal — specify a plugin, e.g.: grft get plugin rabbitmq"
+      show_help
+      exit 2
+    fi
     say ""
     say "Choose plugin:"
     say "  1. RabbitMQ"

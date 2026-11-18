@@ -26,8 +26,20 @@ $script:GraftGatewayInstallerLibsLoaded = $true
 function Initialize-GraftGatewayInstallerLibs {
 }
 
+function Test-GrftInteractiveConsole {
+    -not [Console]::IsInputRedirected -and -not [Console]::IsOutputRedirected
+}
+
+function Exit-GrftNonInteractive {
+    Write-Host 'No interactive console — use non-interactive commands:'
+    Show-GrftHelp
+    exit 2
+}
+
 function Show-GraftcodeIntro {
-    Clear-Host
+    if (Test-GrftInteractiveConsole) {
+        Clear-Host
+    }
 
     Write-Host @"
    _____            __ _                 _      
@@ -205,6 +217,11 @@ function Install-GraftcodeRules {
         return
     }
 
+    if (-not (Test-GrftInteractiveConsole)) {
+        Write-Host 'Specify an IDE, e.g.: grft get rules cursor'
+        Exit-GrftNonInteractive
+    }
+
     Write-Host ""
     Write-Host "Choose IDE:" -ForegroundColor Yellow
     Write-Host "  1. Cursor"
@@ -353,6 +370,10 @@ function Install-GraftcodePlugins {
     $Resolved = $Plugin.ToLowerInvariant()
 
     if (-not $Resolved) {
+        if (-not (Test-GrftInteractiveConsole)) {
+            Write-Host 'Specify a plugin, e.g.: grft get plugin rabbitmq'
+            Exit-GrftNonInteractive
+        }
         Write-Host ""
         Write-Host "Choose plugin:" -ForegroundColor Yellow
         Write-Host "  1. RabbitMQ"
@@ -558,7 +579,12 @@ function Invoke-GrftCommand {
     param([string[]]$CliArgs)
 
     if (-not $CliArgs -or $CliArgs.Count -eq 0) {
-        Invoke-GrftInteractive
+        if (Test-GrftInteractiveConsole) {
+            Invoke-GrftInteractive
+        }
+        else {
+            Exit-GrftNonInteractive
+        }
         return
     }
 
@@ -585,7 +611,12 @@ function Invoke-GrftCommand {
     }
 
     if ($CliArgs.Count -eq 1) {
-        Invoke-GrftInteractive
+        if (Test-GrftInteractiveConsole) {
+            Invoke-GrftInteractive
+        }
+        else {
+            Exit-GrftNonInteractive
+        }
         return
     }
 
@@ -596,19 +627,27 @@ function Invoke-GrftCommand {
             Install-GraftcodeGateway
         }
         { $_ -in @('rules', 'rule') } {
-            if ($CliArgs.Count -lt 3) {
+            if ($CliArgs.Count -ge 3) {
+                Install-GraftcodeRules -Ide $CliArgs[2]
+            }
+            elseif (Test-GrftInteractiveConsole) {
                 Install-GraftcodeRules
             }
             else {
-                Install-GraftcodeRules -Ide $CliArgs[2]
+                Write-Host 'Specify an IDE, e.g.: grft get rules cursor'
+                Exit-GrftNonInteractive
             }
         }
         { $_ -in @('plugin', 'plugins') } {
-            if ($CliArgs.Count -lt 3) {
+            if ($CliArgs.Count -ge 3) {
+                Install-GraftcodePlugins -Plugin $CliArgs[2]
+            }
+            elseif (Test-GrftInteractiveConsole) {
                 Install-GraftcodePlugins
             }
             else {
-                Install-GraftcodePlugins -Plugin $CliArgs[2]
+                Write-Host 'Specify a plugin, e.g.: grft get plugin rabbitmq'
+                Exit-GrftNonInteractive
             }
         }
         default {
