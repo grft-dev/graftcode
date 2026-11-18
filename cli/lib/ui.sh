@@ -11,6 +11,15 @@ ui_is_tty() {
   [ -t 1 ]
 }
 
+ui_stderr_is_tty() {
+  [ -t 2 ]
+}
+
+ui_wants_download_progress() {
+  show_progress="$1"
+  [ "$show_progress" = 1 ] && { ui_is_tty || ui_stderr_is_tty; }
+}
+
 ui_say() {
   echo "$@"
 }
@@ -86,13 +95,13 @@ ui_download_file() {
   ui_say "Downloading $label..."
 
   if ui_has_cmd curl; then
-    if [ "$show_progress" = 1 ] && ui_is_tty; then
+    if ui_wants_download_progress "$show_progress"; then
       curl -fL# "$url" -o "$output"
     else
-      curl -fSL "$url" -o "$output"
+      curl -fsSL "$url" -o "$output"
     fi
   elif ui_has_cmd wget; then
-    if [ "$show_progress" = 1 ] && ui_is_tty; then
+    if ui_wants_download_progress "$show_progress"; then
       wget --show-progress -O "$output" "$url"
     else
       wget -q -O "$output" "$url"

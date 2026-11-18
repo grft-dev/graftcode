@@ -21,6 +21,16 @@ function Test-UiIsInteractive {
   -not [Console]::IsOutputRedirected
 }
 
+function Test-UiCurlHashProgress {
+  param([switch]$ShowProgress)
+
+  if (-not $ShowProgress) {
+    return $false
+  }
+
+  return (-not [Console]::IsErrorRedirected)
+}
+
 function Ui-Say {
   param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Message)
   if ($Message.Count -eq 0) { return }
@@ -73,14 +83,23 @@ function Ui-DownloadFile {
 
   $curl = Get-Command curl.exe -ErrorAction SilentlyContinue
   if ($curl) {
-    $curlArgs = @('-fSL', $Url, '-o', $OutputPath)
-    if ($ShowProgress -and (Test-UiIsInteractive)) {
-      $curlArgs = @('-fL#', $Url, '-o', $OutputPath)
+    $useHashProgress = Test-UiCurlHashProgress -ShowProgress:$ShowProgress
+    $curlArgs = if ($useHashProgress) {
+      @('-fL#', $Url, '-o', $OutputPath)
     }
+    else {
+      @('-fSL', $Url, '-o', $OutputPath)
+    }
+
     $prevEa = $ErrorActionPreference
     $ErrorActionPreference = 'Continue'
     try {
-      & $curl.Source @curlArgs 2>$null
+      if ($useHashProgress) {
+        & $curl.Source @curlArgs
+      }
+      else {
+        & $curl.Source @curlArgs 2>$null
+      }
     }
     finally {
       $ErrorActionPreference = $prevEa
