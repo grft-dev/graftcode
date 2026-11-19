@@ -5,11 +5,10 @@ function Import-GrftCliRawConfig {
     if ($PSScriptRoot) {
         $cliRoot = Split-Path -Parent $PSScriptRoot
         $cfg = Join-Path $cliRoot 'grft-raw-config.ps1'
-        if (-not (Test-Path -LiteralPath $cfg)) {
-            throw ('Missing ' + $cfg + '. Edit grft-raw-config.ps1 or set GrftCliRawBase from a get shim.')
+        if (Test-Path -LiteralPath $cfg) {
+            . $cfg
+            return
         }
-        . $cfg
-        return
     }
     if ($GrftCliRawBase) {
         $cfg = (Invoke-WebRequest -Uri "$($GrftCliRawBase.TrimEnd('/'))/grft-raw-config.ps1" -UseBasicParsing).Content
