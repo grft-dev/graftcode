@@ -2,6 +2,8 @@ if (-not $GrftDeepLinkPluginId) {
     throw 'Set $GrftDeepLinkPluginId in the plugin stub before running invoke.ps1.'
 }
 
+$savedCliRawBase = if ($GrftCliRawBase) { $GrftCliRawBase.TrimEnd('/') } elseif ($script:GrftCliRawBase) { $script:GrftCliRawBase.TrimEnd('/') } else { $null }
+
 $libPath = if ($PSScriptRoot) { Join-Path $PSScriptRoot '..\lib\grft-cli-raw.ps1' } else { $null }
 if ($libPath -and (Test-Path -LiteralPath $libPath)) {
     . $libPath
@@ -15,15 +17,20 @@ else {
     . $tmp
 }
 
-$GrftCliRawBase = Resolve-GrftCliRawBase
-
-$pluginDir = $PSScriptRoot
-if (-not $pluginDir -and $MyInvocation.MyCommand.Path) {
-    $pluginDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+Initialize-GrftCliRawContext
+if ($savedCliRawBase) {
+    $GrftCliRawBase = $savedCliRawBase
+    $script:GrftRawBase = $savedCliRawBase
+}
+else {
+    $GrftCliRawBase = $script:GrftRawBase
 }
 
+$invokePath = $MyInvocation.MyCommand.Path
+$pluginDir = if ($invokePath) { Split-Path -Parent $invokePath } else { $null }
 $runner = if ($pluginDir) { Join-Path $pluginDir 'deep-link.ps1' } else { $null }
-if ($runner -and (Test-Path -LiteralPath $runner)) {
+$checkoutCfg = if ($pluginDir) { Join-Path (Split-Path -Parent $pluginDir) 'grft-raw-config.ps1' } else { $null }
+if ($invokePath -and $runner -and $checkoutCfg -and (Test-Path -LiteralPath $runner) -and (Test-Path -LiteralPath $checkoutCfg)) {
     . $runner
     return
 }
