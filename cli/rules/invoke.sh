@@ -6,7 +6,11 @@ if [ -z "${GRAFT_DEEP_LINK_RULES_IDE:-}" ]; then
   exit 1
 fi
 
-CLI_RAW_BASE="${CLI_RAW_BASE:-https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli}"
+CLI_RAW_BASE="${CLI_RAW_BASE:-${GRFT_CLI_RAW_BASE:-}}"
+if [ -z "$CLI_RAW_BASE" ]; then
+  echo "Error: set GRFT_CLI_RAW_BASE from rules stub before running rules/invoke.sh" >&2
+  exit 1
+fi
 
 rules_dir=""
 case "$0" in
@@ -22,7 +26,7 @@ if [ -n "$rules_dir" ] && [ -f "$rules_dir/deep-link.sh" ]; then
 fi
 
 deep_tmp="$(mktemp)"
-curl -fsSL "$CLI_RAW_BASE/rules/deep-link.sh" -o "$deep_tmp"
+curl -fsSL "$CLI_RAW_BASE/rules/deep-link.sh" -o "$deep_tmp" </dev/null
 sed 's/\r$//' "$deep_tmp" > "${deep_tmp}.lf"
 # shellcheck source=/dev/null
 . "${deep_tmp}.lf"

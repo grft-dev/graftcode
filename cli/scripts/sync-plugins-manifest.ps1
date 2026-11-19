@@ -42,6 +42,10 @@ $DefaultAliases = @{
     servicebus = @('service-bus', 'azure-servicebus', 'asb')
 }
 
+$RulesIdeIds = @(
+    'cursor', 'claude', 'copilot', 'cline', 'windsurf', 'continue', 'aider'
+)
+
 function Get-ReleasePluginIds {
     param([string]$Repository)
 
@@ -124,7 +128,7 @@ function Write-GetPathShims {
 
     $ggPs = @"
 # grft:get=gg (raw path mirrors grft.dev/get/gg)
-if (-not `$GrftCliRawBase) { `$GrftCliRawBase = '$RawCli' }
+`$GrftCliRawBase = '$RawCli'
 iex ((Invoke-WebRequest -Uri "`$GrftCliRawBase/gg.ps1" -UseBasicParsing).Content)
 "@
     [System.IO.File]::WriteAllText((Join-Path $getDir 'gg.ps1'), $ggPs + "`n", $Utf8NoBom)
@@ -147,13 +151,13 @@ GRAFT_DEEP_LINK_PLUGIN_ID=__ID__
 export GRAFT_DEEP_LINK_PLUGIN_ID
 GRFT_CLI_RAW_BASE='__RAW_CLI__'
 export GRFT_CLI_RAW_BASE
-eval "$(curl -fsSL __RAW_CLI__/plugin/invoke.sh)"
+eval "$(curl -fsSL "$GRFT_CLI_RAW_BASE/plugin/invoke.sh")"
 '@
 
     $getPsStub = @'
 # grft:get=plugin/__ID__
 $GrftDeepLinkPluginId = '__ID__'
-if (-not $GrftCliRawBase) { $GrftCliRawBase = '__RAW_CLI__' }
+$GrftCliRawBase = '__RAW_CLI__'
 iex ((Invoke-WebRequest -Uri "$GrftCliRawBase/plugin/invoke.ps1" -UseBasicParsing).Content)
 '@
 
@@ -163,6 +167,35 @@ iex ((Invoke-WebRequest -Uri "$GrftCliRawBase/plugin/invoke.ps1" -UseBasicParsin
         [System.IO.File]::WriteAllText((Join-Path $getPluginDir "$safe.ps1"), $content + "`n", $Utf8NoBom)
         $shContent = $getShStub.Replace('__ID__', $safe).Replace('__RAW_CLI__', $RawCli)
         [System.IO.File]::WriteAllText((Join-Path $getPluginDir "$safe.sh"), $shContent + "`n", $Utf8NoBom)
+    }
+
+    $getRulesDir = Join-Path $getDir 'rules'
+    New-Item -ItemType Directory -Path $getRulesDir -Force | Out-Null
+
+    $getRulesPsStub = @'
+# grft:get=rules/__ID__ (raw path mirrors grft.dev/get/rules/__ID__)
+$GrftDeepLinkRulesIde = '__ID__'
+$GrftCliRawBase = '__RAW_CLI__'
+iex ((Invoke-WebRequest -Uri "$GrftCliRawBase/rules/invoke.ps1" -UseBasicParsing).Content)
+'@
+
+    $getRulesShStub = @'
+#!/bin/sh
+# grft:get=rules/__ID__ (raw path mirrors grft.dev/get/rules/__ID__)
+set -eu
+GRAFT_DEEP_LINK_RULES_IDE=__ID__
+export GRAFT_DEEP_LINK_RULES_IDE
+GRFT_CLI_RAW_BASE='__RAW_CLI__'
+export GRFT_CLI_RAW_BASE
+eval "$(curl -fsSL "$GRFT_CLI_RAW_BASE/rules/invoke.sh")"
+'@
+
+    foreach ($ide in $RulesIdeIds) {
+        $safe = $ide.ToLowerInvariant()
+        $psContent = $getRulesPsStub.Replace('__ID__', $safe).Replace('__RAW_CLI__', $RawCli)
+        [System.IO.File]::WriteAllText((Join-Path $getRulesDir "$safe.ps1"), $psContent + "`n", $Utf8NoBom)
+        $shContent = $getRulesShStub.Replace('__ID__', $safe).Replace('__RAW_CLI__', $RawCli)
+        [System.IO.File]::WriteAllText((Join-Path $getRulesDir "$safe.sh"), $shContent + "`n", $Utf8NoBom)
     }
 }
 
@@ -180,7 +213,7 @@ function Write-PluginDeepLinkStubs {
     $psStub = @'
 # grft:plugin=__ID__
 $GrftDeepLinkPluginId = '__ID__'
-if (-not $GrftCliRawBase) { $GrftCliRawBase = '__RAW_CLI__' }
+$GrftCliRawBase = '__RAW_CLI__'
 iex ((Invoke-WebRequest -Uri "$GrftCliRawBase/plugin/invoke.ps1" -UseBasicParsing).Content)
 '@
 
@@ -192,7 +225,7 @@ GRAFT_DEEP_LINK_PLUGIN_ID=__ID__
 export GRAFT_DEEP_LINK_PLUGIN_ID
 GRFT_CLI_RAW_BASE='__RAW_CLI__'
 export GRFT_CLI_RAW_BASE
-eval "$(curl -fsSL __RAW_CLI__/plugin/invoke.sh)"
+eval "$(curl -fsSL "$GRFT_CLI_RAW_BASE/plugin/invoke.sh")"
 '@
 
     $expected = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
@@ -213,6 +246,59 @@ eval "$(curl -fsSL __RAW_CLI__/plugin/invoke.sh)"
         if ($file.Name -in @('deep-link.ps1', 'deep-link.sh', 'invoke.ps1', 'invoke.sh')) { continue }
         if (-not $expected.Contains($file.Name)) {
             Write-Host "  removed stale plugin stub: $($file.Name)"
+            Remove-Item -LiteralPath $file.FullName -Force
+        }
+    }
+}
+
+function Write-RulesDeepLinkStubs {
+    param(
+        [string[]]$RulesIds,
+        [string]$RulesDir,
+        [string]$RawCli,
+        [System.Text.UTF8Encoding]$Utf8NoBom
+    )
+
+    if (-not (Test-Path -LiteralPath $RulesDir)) {
+        New-Item -ItemType Directory -Path $RulesDir -Force | Out-Null
+    }
+
+    $psStub = @'
+# grft:rules=__ID__
+$GrftDeepLinkRulesIde = '__ID__'
+$GrftCliRawBase = '__RAW_CLI__'
+iex ((Invoke-WebRequest -Uri "$GrftCliRawBase/rules/invoke.ps1" -UseBasicParsing).Content)
+'@
+
+    $shStub = @'
+#!/bin/sh
+# grft:rules=__ID__
+set -eu
+GRAFT_DEEP_LINK_RULES_IDE=__ID__
+export GRAFT_DEEP_LINK_RULES_IDE
+GRFT_CLI_RAW_BASE='__RAW_CLI__'
+export GRFT_CLI_RAW_BASE
+eval "$(curl -fsSL "$GRFT_CLI_RAW_BASE/rules/invoke.sh")"
+'@
+
+    $expected = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach ($ide in $RulesIds) {
+        $safe = $ide.ToLowerInvariant()
+        [void]$expected.Add("$safe.ps1")
+        [void]$expected.Add("$safe.sh")
+
+        $psPath = Join-Path $RulesDir "$safe.ps1"
+        $shPath = Join-Path $RulesDir "$safe.sh"
+        $psContent = $psStub.Replace('__ID__', $safe).Replace('__RAW_CLI__', $RawCli)
+        $shContent = $shStub.Replace('__ID__', $safe).Replace('__RAW_CLI__', $RawCli)
+        [System.IO.File]::WriteAllText($psPath, $psContent + "`n", $Utf8NoBom)
+        [System.IO.File]::WriteAllText($shPath, $shContent + "`n", $Utf8NoBom)
+    }
+
+    foreach ($file in (Get-ChildItem -LiteralPath $RulesDir -File)) {
+        if ($file.Name -in @('deep-link.ps1', 'deep-link.sh', 'invoke.ps1', 'invoke.sh')) { continue }
+        if (-not $expected.Contains($file.Name)) {
+            Write-Host "  removed stale rules stub: $($file.Name)"
             Remove-Item -LiteralPath $file.FullName -Force
         }
     }
@@ -299,13 +385,16 @@ $utf8NoBom = New-Object System.Text.UTF8Encoding $false
 
 $rawCli = Get-GrftCliRawBaseFromConfig -CliRoot $ScriptDir
 $pluginDir = Join-Path $ScriptDir 'plugin'
+$rulesDir = Join-Path $ScriptDir 'rules'
 Write-PluginDeepLinkStubs -PluginIds $releaseIds -PluginDir $pluginDir -RawCli $rawCli
+Write-RulesDeepLinkStubs -RulesIds $RulesIdeIds -RulesDir $rulesDir -RawCli $rawCli -Utf8NoBom $utf8NoBom
 Write-GetPathShims -CliRoot $ScriptDir -RawCli $rawCli -PluginIds $releaseIds -Utf8NoBom $utf8NoBom
 
 Write-Host "Wrote $ManifestPath"
 Write-Host "  cli raw base (grft-raw-config.ps1): $rawCli"
 Write-Host "  deep-link stubs: $($releaseIds -join ', ') in $pluginDir"
-Write-Host "  get/* shims: get/gg.ps1, get/gg.sh, get/plugin/{id}.ps1, get/plugin/{id}.sh"
+Write-Host "  rules deep-link stubs: $($RulesIdeIds -join ', ') in $rulesDir"
+Write-Host "  get/* shims: get/gg.*, get/plugin/{id}.*, get/rules/{ide}.*"
 Write-Host "  release: $($releaseInfo.Tag)"
 Write-Host "  plugins: $($releaseIds -join ', ')"
 if ($oldFp -ne $newFp) {
