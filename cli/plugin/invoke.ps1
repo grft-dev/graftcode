@@ -2,7 +2,20 @@ if (-not $GrftDeepLinkPluginId) {
     throw 'Set $GrftDeepLinkPluginId in the plugin stub before running invoke.ps1.'
 }
 
-$GrftCliRawBase = 'https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli'
+$libPath = if ($PSScriptRoot) { Join-Path $PSScriptRoot '..\lib\grft-cli-raw.ps1' } else { $null }
+if ($libPath -and (Test-Path -LiteralPath $libPath)) {
+    . $libPath
+}
+else {
+    if (-not $GrftCliRawBase) {
+        throw 'Set $GrftCliRawBase from get/plugin or plugin stub before pipe | iex.'
+    }
+    $tmp = Join-Path $env:TEMP 'grft-cli-raw.ps1'
+    Invoke-WebRequest -Uri "$($GrftCliRawBase.TrimEnd('/'))/lib/grft-cli-raw.ps1" -OutFile $tmp -UseBasicParsing
+    . $tmp
+}
+
+$GrftCliRawBase = Resolve-GrftCliRawBase
 
 $pluginDir = $PSScriptRoot
 if (-not $pluginDir -and $MyInvocation.MyCommand.Path) {

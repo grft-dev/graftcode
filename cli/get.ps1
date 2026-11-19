@@ -3,9 +3,21 @@ $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
 $GrftVersion = '0.1.2'
-$GrftRawBase = 'https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli'
+$grftLib = if ($PSScriptRoot) { Join-Path $PSScriptRoot 'lib\grft-cli-raw.ps1' } else { $null }
+if ($grftLib -and (Test-Path -LiteralPath $grftLib)) {
+    . $grftLib
+}
+else {
+    if (-not $GrftCliRawBase) {
+        throw 'Set $GrftCliRawBase (cli/get/*.ps1 shim after sync) before pipe | iex, or run from checkout.'
+    }
+    $tmp = Join-Path $env:TEMP 'grft-cli-raw.ps1'
+    Invoke-WebRequest -Uri "$($GrftCliRawBase.TrimEnd('/'))/lib/grft-cli-raw.ps1" -OutFile $tmp -UseBasicParsing
+    . $tmp
+}
+Initialize-GrftCliRawContext
+$RulesRawBase = $GrftRulesRawBase
 $GrftHome = if ($env:GRFT_HOME) { $env:GRFT_HOME } else { Join-Path $env:USERPROFILE '.grft' }
-$RulesRawBase = "https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/rules"
 $RuleLangs = @('dotnet', 'java', 'kotlin', 'php', 'python', 'ruby', 'typescript-node-nextjs')
 
 $EnsureLayoutPath = if ($PSScriptRoot) { Join-Path $PSScriptRoot 'ensure-ps-cli-layout.ps1' } else { $null }

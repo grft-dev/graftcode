@@ -49,6 +49,20 @@ grft version
 
 When `grft` runs from `~/.grft`, it checks `cli/VERSION` on GitHub and self-updates before running your command.
 
+## Branch / pre-merge testing (raw)
+
+1. Edit **`cli/grft-raw-config.ps1`** — only `$GrftCliGitRef` (e.g. `feature/5272-grft-cli-installer-dx`).
+2. Run **`.\cli\scripts\sync-plugins-manifest.ps1`** (refreshes `plugin/*` and `cli/get/*` shims with `$GrftCliRawBase`).
+3. Push, then pipe (`.ps1` on raw):
+
+```powershell
+. .\cli\grft-raw-config.ps1
+iwr "$GrftCliRawBase/get/gg.ps1" -UseBasicParsing | iex
+iwr "$GrftCliRawBase/get/plugin/rabbitmq.ps1" -UseBasicParsing | iex
+```
+
+Reset **`$GrftCliGitRef`** to `main` and re-run sync before merge. Production: **`iwr https://grft.dev/get/plugin/rabbitmq | iex`** (after merge).
+
 ## One-shot install (no PATH)
 
 Still works without installing `grft`:

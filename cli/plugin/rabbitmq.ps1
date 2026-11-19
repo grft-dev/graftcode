@@ -1,3 +1,4 @@
 # grft:plugin=rabbitmq
 $GrftDeepLinkPluginId = 'rabbitmq'
-iex ((Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli/plugin/invoke.ps1' -UseBasicParsing).Content)
+$GrftCliRawBase = 'https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/feature/5272-grft-cli-installer-dx/cli'
+iex ((Invoke-WebRequest -Uri "$GrftCliRawBase/plugin/invoke.ps1" -UseBasicParsing).Content)
