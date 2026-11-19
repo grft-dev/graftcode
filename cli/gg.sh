@@ -69,14 +69,12 @@ else
   _bootstrap_dir="$(graft_cli_resolve_script_dir)"
 fi
 if [ -n "$_bootstrap_dir" ] && [ -f "$_bootstrap_dir/lib/grft-cli-layout-bootstrap.sh" ]; then
-  # shellcheck source=./lib/grft-cli-layout-bootstrap.sh
-  . "$_bootstrap_dir/lib/grft-cli-layout-bootstrap.sh"
-  graft_cli_bootstrap_layout || exit 1
+  graft_cli_source_sh_file "$_bootstrap_dir/lib/grft-cli-layout-bootstrap.sh"
+  graft_cli_bootstrap_layout "$_bootstrap_dir" || exit 1
 elif command -v curl >/dev/null 2>&1; then
   _ensure_tmp="$(mktemp)"
   curl -fsSL "$CLI_RAW_BASE/ensure-sh-cli-layout.sh" -o "$_ensure_tmp"
-  # shellcheck source=/dev/null
-  . "$_ensure_tmp"
+  graft_cli_source_sh_file "$_ensure_tmp"
   rm -f "$_ensure_tmp"
   graft_cli_load_and_initialize_layout || exit 1
 else

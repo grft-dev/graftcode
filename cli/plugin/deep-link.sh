@@ -92,8 +92,7 @@ graft_cli_source_lib() {
 
 _cli_parent="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
 if [ -f "$_cli_parent/lib/grft-cli-layout-bootstrap.sh" ]; then
-  # shellcheck source=../lib/grft-cli-layout-bootstrap.sh
-  . "$_cli_parent/lib/grft-cli-layout-bootstrap.sh"
+  graft_cli_source_sh_file "$_cli_parent/lib/grft-cli-layout-bootstrap.sh"
   graft_cli_bootstrap_layout "$_cli_parent" || exit 1
 elif command -v curl >/dev/null 2>&1; then
   _ensure_tmp="$(mktemp)"

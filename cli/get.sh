@@ -278,8 +278,7 @@ graft_cli_ensure_gateway_installer_libs() {
   fi
 
   if [ -f "$script_dir/lib/grft-cli-layout-bootstrap.sh" ]; then
-  # shellcheck source=./lib/grft-cli-layout-bootstrap.sh
-    . "$script_dir/lib/grft-cli-layout-bootstrap.sh"
+    graft_cli_source_sh_file "$script_dir/lib/grft-cli-layout-bootstrap.sh"
     graft_cli_bootstrap_layout "$script_dir" || exit 1
   elif has_cmd curl; then
     ensure_tmp="$(mktemp)"

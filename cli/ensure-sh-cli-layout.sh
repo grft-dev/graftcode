@@ -7,6 +7,18 @@ graft_cli_layout_has_cmd() {
   command -v "$1" >/dev/null 2>&1
 }
 
+graft_cli_dot_local_file() {
+  file_path="$1"
+  if [ ! -f "$file_path" ]; then
+    return 1
+  fi
+  dot_tmp="$(mktemp)"
+  sed 's/\r$//' "$file_path" > "$dot_tmp"
+  # shellcheck source=/dev/null
+  . "$dot_tmp"
+  rm -f "$dot_tmp"
+}
+
 graft_cli_layout_download() {
   url="$1"
   output="$2"
@@ -132,11 +144,9 @@ graft_cli_load_and_initialize_layout() {
     esac
 
     if [ -n "$script_dir" ] && [ -f "$script_dir/ensure-sh-cli-layout.sh" ]; then
-      # shellcheck source=/dev/null
-      . "$script_dir/ensure-sh-cli-layout.sh"
+      graft_cli_dot_local_file "$script_dir/ensure-sh-cli-layout.sh"
     elif [ -n "${GRAFT_CLI_DIR:-}" ] && [ -f "$GRAFT_CLI_DIR/ensure-sh-cli-layout.sh" ]; then
-      # shellcheck source=/dev/null
-      . "$GRAFT_CLI_DIR/ensure-sh-cli-layout.sh"
+      graft_cli_dot_local_file "$GRAFT_CLI_DIR/ensure-sh-cli-layout.sh"
     elif [ -n "$base" ] && graft_cli_layout_has_cmd curl; then
       ensure_tmp="$(mktemp)"
       curl -fsSL "$base/ensure-sh-cli-layout.sh" -o "$ensure_tmp" || {
@@ -144,8 +154,7 @@ graft_cli_load_and_initialize_layout() {
         rm -f "$ensure_tmp"
         return 1
       }
-      # shellcheck source=/dev/null
-      . "$ensure_tmp"
+      graft_cli_dot_local_file "$ensure_tmp"
       rm -f "$ensure_tmp"
     else
       echo "Error: cannot load ensure-sh-cli-layout.sh (set CLI_RAW_BASE and install curl)." >&2

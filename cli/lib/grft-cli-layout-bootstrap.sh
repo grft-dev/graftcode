@@ -23,12 +23,18 @@ graft_cli_bootstrap_layout() {
     parent_dir="$script_dir"
   fi
 
-  if [ -n "$parent_dir" ] && [ -f "$parent_dir/ensure-sh-cli-layout.sh" ]; then
+    if [ -n "$parent_dir" ] && [ -f "$parent_dir/ensure-sh-cli-layout.sh" ]; then
+    _ensure_local="$(mktemp)"
+    sed 's/\r$//' "$parent_dir/ensure-sh-cli-layout.sh" > "$_ensure_local"
     # shellcheck source=/dev/null
-    . "$parent_dir/ensure-sh-cli-layout.sh"
+    . "$_ensure_local"
+    rm -f "$_ensure_local"
   elif [ -n "${GRAFT_CLI_DIR:-}" ] && [ -f "$GRAFT_CLI_DIR/ensure-sh-cli-layout.sh" ]; then
+    _ensure_local="$(mktemp)"
+    sed 's/\r$//' "$GRAFT_CLI_DIR/ensure-sh-cli-layout.sh" > "$_ensure_local"
     # shellcheck source=/dev/null
-    . "$GRAFT_CLI_DIR/ensure-sh-cli-layout.sh"
+    . "$_ensure_local"
+    rm -f "$_ensure_local"
   elif [ -n "$base" ] && command -v curl >/dev/null 2>&1; then
     ensure_tmp="$(mktemp)"
     if ! curl -fsSL "$base/ensure-sh-cli-layout.sh" -o "$ensure_tmp"; then
