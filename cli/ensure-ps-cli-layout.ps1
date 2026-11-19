@@ -22,6 +22,10 @@ function Initialize-GraftPowerShellCliLayout {
                     Invoke-WebRequest -Uri "$GrftRawBase/lib/$name" -OutFile $out -UseBasicParsing
                 }
             }
+            $uiPath = Join-Path $libDir 'ui.ps1'
+            if ((Test-Path -LiteralPath $uiPath) -and -not (Select-String -LiteralPath $uiPath -Pattern 'function Show-UiPluginInstalled' -Quiet)) {
+                Invoke-WebRequest -Uri "$GrftRawBase/lib/ui.ps1" -OutFile $uiPath -UseBasicParsing
+            }
             $manifestPath = Join-Path $root 'plugins.manifest.json'
             if (-not (Test-Path -LiteralPath $manifestPath)) {
                 Invoke-WebRequest -Uri "$GrftRawBase/plugins.manifest.json" -OutFile $manifestPath -UseBasicParsing
