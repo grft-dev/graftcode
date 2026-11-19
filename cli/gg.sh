@@ -1,7 +1,10 @@
 #!/bin/sh
 set -eu
 
-if [ -f "$(dirname "$0")/grft-raw-config.sh" ]; then
+if [ -n "${GRAFT_CLI_DIR:-}" ] && [ -f "$GRAFT_CLI_DIR/grft-raw-config.sh" ]; then
+  # shellcheck source=/dev/null
+  . "$GRAFT_CLI_DIR/grft-raw-config.sh"
+elif [ -f "$(dirname "$0")/grft-raw-config.sh" ]; then
   # shellcheck source=./grft-raw-config.sh
   . "$(dirname "$0")/grft-raw-config.sh"
 fi
@@ -60,7 +63,11 @@ graft_cli_source_lib() {
   graft_cli_source_lib_from_url "$lib_rel"
 }
 
-_bootstrap_dir="$(graft_cli_resolve_script_dir)"
+if [ -n "${GRAFT_CLI_DIR:-}" ] && [ -d "$GRAFT_CLI_DIR" ]; then
+  _bootstrap_dir="$GRAFT_CLI_DIR"
+else
+  _bootstrap_dir="$(graft_cli_resolve_script_dir)"
+fi
 if [ -n "$_bootstrap_dir" ] && [ -f "$_bootstrap_dir/lib/grft-cli-layout-bootstrap.sh" ]; then
   # shellcheck source=./lib/grft-cli-layout-bootstrap.sh
   . "$_bootstrap_dir/lib/grft-cli-layout-bootstrap.sh"

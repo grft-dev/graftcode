@@ -3,7 +3,10 @@
 set -eu
 
 GRFT_VERSION="0.1.2"
-if [ -f "$(dirname "$0")/grft-raw-config.sh" ]; then
+if [ -n "${GRAFT_CLI_DIR:-}" ] && [ -f "$GRAFT_CLI_DIR/grft-raw-config.sh" ]; then
+  # shellcheck source=/dev/null
+  . "$GRAFT_CLI_DIR/grft-raw-config.sh"
+elif [ -f "$(dirname "$0")/grft-raw-config.sh" ]; then
   # shellcheck source=./grft-raw-config.sh
   . "$(dirname "$0")/grft-raw-config.sh"
 fi
@@ -267,12 +270,17 @@ graft_cli_ensure_gateway_installer_libs() {
   fi
 
   CLI_RAW_BASE="${CLI_RAW_BASE:-$GRFT_RAW_BASE}"
-  script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+  script_dir=""
+  if [ -n "${GRAFT_CLI_DIR:-}" ] && [ -d "$GRAFT_CLI_DIR" ]; then
+    script_dir="$GRAFT_CLI_DIR"
+  else
+    script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+  fi
 
   if [ -f "$script_dir/lib/grft-cli-layout-bootstrap.sh" ]; then
   # shellcheck source=./lib/grft-cli-layout-bootstrap.sh
     . "$script_dir/lib/grft-cli-layout-bootstrap.sh"
-    graft_cli_bootstrap_layout || exit 1
+    graft_cli_bootstrap_layout "$script_dir" || exit 1
   elif has_cmd curl; then
     ensure_tmp="$(mktemp)"
     curl -fsSL "$CLI_RAW_BASE/ensure-sh-cli-layout.sh" -o "$ensure_tmp"

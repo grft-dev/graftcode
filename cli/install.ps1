@@ -42,6 +42,7 @@ New-Item -ItemType Directory -Path $BinDir -Force | Out-Null
 
 Save-GrftFile -RelativePath 'VERSION' -OutputPath (Join-Path $GrftHome 'VERSION') -Label 'VERSION'
 Save-GrftFile -RelativePath 'get.ps1' -OutputPath (Join-Path $GrftHome 'get.ps1') -Label 'get.ps1'
+Save-GrftFile -RelativePath 'grft-raw-config.ps1' -OutputPath (Join-Path $GrftHome 'grft-raw-config.ps1') -Label 'grft-raw-config.ps1'
 Save-GrftFile -RelativePath 'ensure-ps-cli-layout.ps1' -OutputPath (Join-Path $GrftHome 'ensure-ps-cli-layout.ps1') -Label 'ensure-ps-cli-layout.ps1'
 Save-GrftFile -RelativePath 'bin/grft.cmd' -OutputPath (Join-Path $BinDir 'grft.cmd') -Label 'grft.cmd'
 Save-GrftFile -RelativePath 'plugins.manifest.json' -OutputPath (Join-Path $GrftHome 'plugins.manifest.json') -Label 'plugins.manifest.json'

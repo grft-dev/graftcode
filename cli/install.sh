@@ -74,6 +74,7 @@ mkdir -p "$GRFT_HOME" "$BIN_DIR"
 
 copy_or_download "VERSION" "$GRFT_HOME/VERSION" "VERSION"
 copy_or_download "get.sh" "$GRFT_HOME/get.sh" "get.sh"
+copy_or_download "grft-raw-config.sh" "$GRFT_HOME/grft-raw-config.sh" "grft-raw-config.sh"
 copy_or_download "ensure-sh-cli-layout.sh" "$GRFT_HOME/ensure-sh-cli-layout.sh" "ensure-sh-cli-layout.sh"
 copy_or_download "plugins.manifest.json" "$GRFT_HOME/plugins.manifest.json" "plugins.manifest.json"
 copy_or_download "bin/grft" "$BIN_DIR/grft" "grft"
