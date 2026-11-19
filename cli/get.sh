@@ -140,15 +140,17 @@ is_grft_home_present() {
 
 read_from_tty() {
   prompt="$1"
+  choice=""
 
   if grft_dev_tty_usable; then
-    say_no_newline "$prompt"
-    IFS= read -r choice < /dev/tty || choice=""
+    printf '%s' "$prompt" >/dev/tty
+    IFS= read -r choice </dev/tty || choice=""
   else
-    printf "%s" "$prompt"
+    printf '%s' "$prompt"
     IFS= read -r choice || choice=""
   fi
 
+  choice="$(printf '%s' "$choice" | tr -d '\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
   echo "$choice"
 }
 
@@ -312,12 +314,56 @@ graft_cli_source_sh_file() {
   rm -f "$sh_local"
 }
 
+graft_cli_is_ephemeral_pipe_invocation() {
+  case "${0:-}" in
+    '' | - | sh | bash) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+graft_cli_source_lib_from_url() {
+  lib_rel="$1"
+  CLI_RAW_BASE="${CLI_RAW_BASE:-$GRFT_RAW_BASE}"
+  if ! has_cmd curl; then
+    say "Error: curl is required to load $lib_rel from $CLI_RAW_BASE."
+    exit 1
+  fi
+  lib_tmp="$(mktemp)"
+  curl -fsSL "$CLI_RAW_BASE/$lib_rel" -o "$lib_tmp" || {
+    rm -f "$lib_tmp"
+    say "Error: failed to load $lib_rel from $CLI_RAW_BASE."
+    exit 1
+  }
+  graft_cli_source_sh_file "$lib_tmp"
+  rm -f "$lib_tmp"
+}
+
 graft_cli_ensure_gateway_installer_libs() {
   if [ -n "${GRAFT_GATEWAY_INSTALLER_LOADED:-}" ]; then
     return 0
   fi
 
   CLI_RAW_BASE="${CLI_RAW_BASE:-$GRFT_RAW_BASE}"
+
+  if command -v install_gg_to_cwd >/dev/null 2>&1; then
+    GRAFT_GATEWAY_INSTALLER_LOADED=1
+    return 0
+  fi
+
+  if [ -n "${GRAFT_CLI_DIR:-}" ] && [ -f "$GRAFT_CLI_DIR/lib/gateway-installer.sh" ]; then
+    graft_cli_source_sh_file "$GRAFT_CLI_DIR/lib/ui.sh"
+    graft_cli_source_sh_file "$GRAFT_CLI_DIR/lib/gateway-installer.sh"
+    GRAFT_GATEWAY_INSTALLER_LOADED=1
+    return 0
+  fi
+
+  if graft_cli_is_ephemeral_pipe_invocation && has_cmd curl; then
+    graft_cli_source_lib_from_url "lib/ui.sh"
+    graft_cli_source_lib_from_url "lib/gateway-installer.sh"
+    GRAFT_GATEWAY_INSTALLER_LOADED=1
+    return 0
+  fi
+
   script_dir=""
   if [ -n "${GRAFT_CLI_DIR:-}" ] && [ -d "$GRAFT_CLI_DIR" ]; then
     script_dir="$GRAFT_CLI_DIR"
