@@ -49,22 +49,51 @@ grft_is_interactive_tty() {
   return 1
 }
 
+graft_cli_ensure_ui_lib() {
+  if [ -n "${GRAFT_UI_LIB_LOADED:-}" ]; then
+    return 0
+  fi
+  if command -v ui_show_gateway_logo >/dev/null 2>&1; then
+    GRAFT_UI_LIB_LOADED=1
+    return 0
+  fi
+  CLI_RAW_BASE="${CLI_RAW_BASE:-$GRFT_RAW_BASE}"
+  if ! command -v curl >/dev/null 2>&1; then
+    return 1
+  fi
+  ui_tmp="$(mktemp)"
+  curl -fsSL "$CLI_RAW_BASE/lib/ui.sh" -o "$ui_tmp" || {
+    rm -f "$ui_tmp"
+    return 1
+  }
+  sh_local="$(mktemp)"
+  sed 's/\r$//' "$ui_tmp" > "$sh_local"
+  # shellcheck source=/dev/null
+  . "$sh_local"
+  rm -f "$ui_tmp" "$sh_local"
+  GRAFT_UI_LIB_LOADED=1
+}
+
+grft_plugin_ids_from_raw_manifest() {
+  if ! command -v curl >/dev/null 2>&1; then
+    return 1
+  fi
+  curl -fsSL "$GRFT_RAW_BASE/plugins.manifest.json" 2>/dev/null |
+    sed -n 's/.*"id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' |
+    tr '\n' ',' |
+    sed 's/,$//'
+}
+
 show_intro() {
   if grft_is_interactive_tty; then
     clear 2>/dev/null || true
   fi
 
-  cat <<'EOF'
-   _____            __ _                 _
-  / ____|          / _| |               | |
- | |  __ _ __ __ _| |_| |_ ___ ___   __| | ___
- | | |_ | '__/ _` |  _| __/ __/ _ \ / _` |/ _ \
- | |__| | | | (_| | | | || (_| (_) | (_| |  __/
-  \_____|_|  \__,_|_|  \__\___\___/ \__,_|\___|
+  if graft_cli_ensure_ui_lib && command -v ui_show_gateway_logo >/dev/null 2>&1; then
+    ui_show_gateway_logo
+    say ""
+  fi
 
-EOF
-
-  say ""
   say "Graftcode helps you generate AI code that integrates through Graftcode."
   say "It can reduce boilerplate, simplify PRs, and save up to 80% of tokens."
   say ""
@@ -86,6 +115,8 @@ EOF
   plugin_names=""
   if [ -n "$plugin_manifest" ] && [ -f "$plugin_manifest" ]; then
     plugin_names="$(sed -n 's/.*"id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$plugin_manifest" | tr '\n' ',' | sed 's/,$//')"
+  elif plugin_names="$(grft_plugin_ids_from_raw_manifest)" && [ -n "$plugin_names" ]; then
+    :
   fi
   if [ -n "$plugin_names" ]; then
     say "     - messaging plugins for the gateway ($plugin_names)"
@@ -110,7 +141,7 @@ is_grft_home_present() {
 read_from_tty() {
   prompt="$1"
 
-  if [ -r /dev/tty ]; then
+  if grft_dev_tty_usable; then
     say_no_newline "$prompt"
     IFS= read -r choice < /dev/tty || choice=""
   else
