@@ -408,6 +408,51 @@ graft_cli_ensure_gateway_installer_libs() {
   GRAFT_GATEWAY_INSTALLER_LOADED=1
 }
 
+graft_cli_load_plugin_install_stack() {
+  if command -v graft_plugin_resolve_id >/dev/null 2>&1; then
+    return 0
+  fi
+
+  graft_cli_ensure_gateway_installer_libs
+  CLI_RAW_BASE="${CLI_RAW_BASE:-$GRFT_RAW_BASE}"
+
+  if [ -n "${GRAFT_CLI_DIR:-}" ] && [ -f "$GRAFT_CLI_DIR/lib/plugin-manifest.sh" ]; then
+    graft_cli_source_sh_file "$GRAFT_CLI_DIR/lib/plugin-manifest.sh"
+    if [ -f "$GRAFT_CLI_DIR/lib/plugin-installer.sh" ]; then
+      graft_cli_source_sh_file "$GRAFT_CLI_DIR/lib/plugin-installer.sh"
+    fi
+    graft_cli_ensure_plugin_manifest_file
+    return 0
+  fi
+
+  if graft_cli_is_ephemeral_pipe_invocation && has_cmd curl; then
+    export GRAFT_CLI_EPHEMERAL=1
+    graft_cli_source_lib_from_url "lib/plugin-manifest.sh"
+    graft_cli_source_lib_from_url "lib/plugin-installer.sh"
+    graft_cli_ensure_plugin_manifest_file
+    return 0
+  fi
+
+  if has_cmd curl; then
+    ensure_tmp="$(mktemp)"
+    curl -fsSL "$CLI_RAW_BASE/ensure-sh-cli-layout.sh" -o "$ensure_tmp" </dev/null
+    # shellcheck source=/dev/null
+    . "$ensure_tmp"
+    rm -f "$ensure_tmp"
+    graft_cli_load_and_initialize_layout || exit 1
+  fi
+
+  if [ -n "${GRAFT_CLI_DIR:-}" ] && [ -f "$GRAFT_CLI_DIR/lib/plugin-manifest.sh" ]; then
+    graft_cli_source_sh_file "$GRAFT_CLI_DIR/lib/plugin-manifest.sh"
+    graft_cli_source_sh_file "$GRAFT_CLI_DIR/lib/plugin-installer.sh"
+    graft_cli_ensure_plugin_manifest_file
+    return 0
+  fi
+
+  say "Error: plugin-manifest.sh missing after layout ensure."
+  exit 1
+}
+
 install_gateway() {
   say "Preparing Graftcode Gateway download..."
   graft_cli_ensure_gateway_installer_libs
@@ -415,27 +460,13 @@ install_gateway() {
 }
 
 install_plugins() {
-  graft_cli_ensure_gateway_installer_libs
-
-  if [ -z "${GRAFT_CLI_DIR:-}" ] || [ ! -f "$GRAFT_CLI_DIR/lib/plugin-manifest.sh" ]; then
-    say "Error: plugin-manifest.sh missing after layout ensure."
-    exit 1
-  fi
-  graft_cli_source_sh_file "$GRAFT_CLI_DIR/lib/plugin-manifest.sh"
-
-  graft_cli_ensure_plugin_manifest_file
+  graft_cli_load_plugin_install_stack
 
   manifest="$(graft_plugin_manifest_path)"
   if [ ! -f "$manifest" ]; then
     say "Error: missing plugins.manifest.json"
     exit 1
   fi
-
-  if [ ! -f "$GRAFT_CLI_DIR/lib/plugin-installer.sh" ]; then
-    say "Error: plugin-installer.sh missing after layout ensure."
-    exit 1
-  fi
-  graft_cli_source_sh_file "$GRAFT_CLI_DIR/lib/plugin-installer.sh"
 
   plugin=""
   if [ "$#" -ge 1 ]; then

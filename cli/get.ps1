@@ -19,9 +19,7 @@ else {
     . $tmp
 }
 Initialize-GrftCliRawContext
-$RulesRawBase = $GrftRulesRawBase
 $GrftHome = if ($env:GRFT_HOME) { $env:GRFT_HOME } else { Join-Path $env:USERPROFILE '.grft' }
-$RuleLangs = @('dotnet', 'java', 'kotlin', 'php', 'python', 'ruby', 'typescript-node-nextjs')
 
 $EnsureLayoutPath = if ($PSScriptRoot) { Join-Path $PSScriptRoot 'ensure-ps-cli-layout.ps1' } else { $null }
 if ($EnsureLayoutPath -and (Test-Path -LiteralPath $EnsureLayoutPath)) {
@@ -40,6 +38,7 @@ $GraftGatewayInstallerPath = Join-Path (Join-Path $GraftCliDir 'lib') 'gateway-i
 . $GraftGatewayInstallerPath
 . (Join-Path (Join-Path $GraftCliDir 'lib') 'plugin-manifest.ps1')
 . (Join-Path (Join-Path $GraftCliDir 'lib') 'plugin-installer.ps1')
+. (Join-Path (Join-Path $GraftCliDir 'lib') 'rules-installer.ps1')
 $script:GraftGatewayInstallerLibsLoaded = $true
 
 function Test-GrftInteractiveConsole {
@@ -135,107 +134,12 @@ function Download-FileWithSpinner {
     Write-Host "`rDownloaded $Label " -ForegroundColor Green
 }
 
-function Download-GraftcodeRuleSet {
-    param(
-        [string]$RemoteDir,
-        [string]$LocalDir,
-        [string]$Extension,
-        [switch]$IncludeRouter
-    )
-
-    if (-not (Test-Path $LocalDir)) {
-        New-Item -ItemType Directory -Path $LocalDir -Force | Out-Null
-    }
-
-    $Names = @()
-    if ($IncludeRouter) {
-        $Names += 'router'
-    }
-    $Names += $RuleLangs
-
-    foreach ($Name in $Names) {
-        $FileName = "graftcode-$Name.$Extension"
-        $Url = "$RemoteDir/$FileName"
-        $OutputPath = Join-Path $LocalDir $FileName
-        Download-FileWithSpinner -Url $Url -OutputPath $OutputPath -Label $FileName
-    }
-}
-
-function Install-GraftcodeRulesForIde {
-    param([string]$Ide)
-
-    switch ($Ide.ToLowerInvariant()) {
-        { $_ -in @('cursor', '1') } {
-            $RulesDir = Join-Path $PWD ".cursor\rules"
-            Download-GraftcodeRuleSet -RemoteDir "$RulesRawBase/Cursor/.cursor/rules" -LocalDir $RulesDir -Extension "mdc" -IncludeRouter
-            Write-Host ""
-            Write-Host "Installed Graftcode Cursor rules in:" -ForegroundColor Green
-            Write-Host $RulesDir
-        }
-        { $_ -in @('claude', 'claude-code', '2') } {
-            Download-FileWithSpinner -Url "$RulesRawBase/Claude/CLAUDE.md" -OutputPath (Join-Path $PWD "CLAUDE.md") -Label "CLAUDE.md"
-            $RulesDir = Join-Path $PWD ".claude\rules"
-            Download-GraftcodeRuleSet -RemoteDir "$RulesRawBase/Claude/.claude/rules" -LocalDir $RulesDir -Extension "md"
-            Write-Host ""
-            Write-Host "Installed Graftcode Claude Code rules in:" -ForegroundColor Green
-            Write-Host (Join-Path $PWD "CLAUDE.md")
-            Write-Host $RulesDir
-        }
-        { $_ -in @('copilot', 'github-copilot', 'github', '3') } {
-            $GithubDir = Join-Path $PWD ".github"
-            if (-not (Test-Path $GithubDir)) {
-                New-Item -ItemType Directory -Path $GithubDir -Force | Out-Null
-            }
-            Download-FileWithSpinner -Url "$RulesRawBase/Copilot/.github/copilot-instructions.md" -OutputPath (Join-Path $GithubDir "copilot-instructions.md") -Label "copilot-instructions.md"
-            $RulesDir = Join-Path $GithubDir "instructions"
-            Download-GraftcodeRuleSet -RemoteDir "$RulesRawBase/Copilot/.github/instructions" -LocalDir $RulesDir -Extension "instructions.md"
-            Write-Host ""
-            Write-Host "Installed Graftcode GitHub Copilot rules in:" -ForegroundColor Green
-            Write-Host (Join-Path $GithubDir "copilot-instructions.md")
-            Write-Host $RulesDir
-        }
-        { $_ -in @('cline', '4') } {
-            $RulesDir = Join-Path $PWD ".clinerules"
-            Download-GraftcodeRuleSet -RemoteDir "$RulesRawBase/Cline/.clinerules" -LocalDir $RulesDir -Extension "md" -IncludeRouter
-            Write-Host ""
-            Write-Host "Installed Graftcode Cline rules in:" -ForegroundColor Green
-            Write-Host $RulesDir
-        }
-        { $_ -in @('windsurf', '5') } {
-            $RulesDir = Join-Path $PWD ".windsurf\rules"
-            Download-GraftcodeRuleSet -RemoteDir "$RulesRawBase/Windsurf/.windsurf/rules" -LocalDir $RulesDir -Extension "md" -IncludeRouter
-            Write-Host ""
-            Write-Host "Installed Graftcode Windsurf rules in:" -ForegroundColor Green
-            Write-Host $RulesDir
-        }
-        { $_ -in @('continue', '6') } {
-            $RulesDir = Join-Path $PWD ".continue\rules"
-            Download-GraftcodeRuleSet -RemoteDir "$RulesRawBase/Continue/.continue/rules" -LocalDir $RulesDir -Extension "md" -IncludeRouter
-            Write-Host ""
-            Write-Host "Installed Graftcode Continue rules in:" -ForegroundColor Green
-            Write-Host $RulesDir
-        }
-        { $_ -in @('aider', '7') } {
-            Download-FileWithSpinner -Url "$RulesRawBase/Aider/CONVENTIONS.md" -OutputPath (Join-Path $PWD "CONVENTIONS.md") -Label "CONVENTIONS.md"
-            Download-FileWithSpinner -Url "$RulesRawBase/Aider/.aider.conf.yml" -OutputPath (Join-Path $PWD ".aider.conf.yml") -Label ".aider.conf.yml"
-            Write-Host ""
-            Write-Host "Installed Graftcode Aider rules in:" -ForegroundColor Green
-            Write-Host (Join-Path $PWD "CONVENTIONS.md")
-            Write-Host (Join-Path $PWD ".aider.conf.yml")
-        }
-        default {
-            Exit-UiUserError "Unknown IDE '$Ide'." @(
-                'Use: cursor, claude, copilot, cline, windsurf, continue, aider'
-            )
-        }
-    }
-}
-
 function Install-GraftcodeRules {
     param([string]$Ide = '')
 
     if ($Ide) {
         Install-GraftcodeRulesForIde -Ide $Ide
+        Show-UiDone
         return
     }
 
@@ -257,6 +161,7 @@ function Install-GraftcodeRules {
 
     $IdeChoice = Read-MenuChoice -Prompt "Enter choice [1-7]" -AllowedChoices @('1', '2', '3', '4', '5', '6', '7')
     Install-GraftcodeRulesForIde -Ide $IdeChoice
+    Show-UiDone
 }
 
 function Install-GraftcodeGateway {
@@ -392,7 +297,7 @@ function Update-GrftIfNeeded {
     Download-FileWithSpinner -Url "$GrftRawBase/plugins.manifest.json" -OutputPath (Join-Path $GrftHome 'plugins.manifest.json') -Label 'plugins.manifest.json'
     $UpdateLibDir = Join-Path $GrftHome 'lib'
     New-Item -ItemType Directory -Path $UpdateLibDir -Force | Out-Null
-    foreach ($libName in @('ui.ps1', 'gateway-installer.ps1', 'plugin-manifest.ps1')) {
+    foreach ($libName in @('ui.ps1', 'gateway-installer.ps1', 'plugin-manifest.ps1', 'plugin-installer.ps1', 'rules-installer.ps1')) {
         Download-FileWithSpinner -Url "$GrftRawBase/lib/$libName" -OutputPath (Join-Path $UpdateLibDir $libName) -Label "lib/$libName"
     }
 

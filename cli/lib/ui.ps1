@@ -129,6 +129,13 @@ function Ui-ObtainingLatestPluginRelease {
   }
 }
 
+function Ui-ObtainingRulesForIde {
+  param([string]$IdeLabel)
+
+  $name = if ([string]::IsNullOrWhiteSpace($IdeLabel)) { 'IDE' } else { $IdeLabel }
+  Ui-Say "Installing Graftcode rules for $name"
+}
+
 function Write-UiBracketProgress {
   param([int]$Percent)
 
@@ -282,6 +289,19 @@ function Show-UiPluginInstalled {
   Write-Host ''
   Write-Host "Installed Graftcode $PluginLabel plugin in:" -ForegroundColor Green
   Write-Host $InstallDir
+}
+
+function Show-UiRulesInstalled {
+  param(
+    [string]$IdeLabel,
+    [string[]]$OutputPaths
+  )
+
+  Write-Host ''
+  Write-Host "Installed Graftcode $IdeLabel rules in:" -ForegroundColor Green
+  foreach ($path in $OutputPaths) {
+    Write-Host $path
+  }
 }
 
 function Show-UiDone {
