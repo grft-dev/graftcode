@@ -1,5 +1,5 @@
 function Import-GrftCliRawConfig {
-    if ($GrftCliRawBase -and $GrftRulesRawBase) {
+    if ($script:GrftCliRawBase -and $script:GrftRulesRawBase) {
         return
     }
     if ($PSScriptRoot) {
@@ -16,26 +16,32 @@ function Import-GrftCliRawConfig {
         Invoke-Expression $cfg
         return
     }
+    if ($script:GrftCliRawBase) {
+        return
+    }
     throw 'Set $GrftCliRawBase (get/* shim after sync) before pipe | iex, or run from cli/ checkout.'
 }
 
 function Resolve-GrftCliRawBase {
     Import-GrftCliRawConfig
-    if (-not $GrftCliRawBase) {
+    $base = if ($script:GrftCliRawBase) { $script:GrftCliRawBase } else { $GrftCliRawBase }
+    if (-not $base) {
         throw 'grft-raw-config.ps1 must set $GrftCliRawBase.'
     }
-    return $GrftCliRawBase.TrimEnd('/')
+    return $base.TrimEnd('/')
 }
 
 function Get-GrftRulesRawBase {
     Import-GrftCliRawConfig
-    if ($GrftRulesRawBase) {
-        return $GrftRulesRawBase.TrimEnd('/')
+    $rules = if ($script:GrftRulesRawBase) { $script:GrftRulesRawBase } else { $GrftRulesRawBase }
+    if ($rules) {
+        return $rules.TrimEnd('/')
     }
-    if (-not $GrftCliRawBase) {
+    $base = if ($script:GrftCliRawBase) { $script:GrftCliRawBase } else { $GrftCliRawBase }
+    if (-not $base) {
         throw 'grft-raw-config.ps1 must set $GrftCliRawBase.'
     }
-    return ($GrftCliRawBase.TrimEnd('/') -replace '/cli$', '/rules')
+    return ($base.TrimEnd('/') -replace '/cli$', '/rules')
 }
 
 function Initialize-GrftCliRawContext {
