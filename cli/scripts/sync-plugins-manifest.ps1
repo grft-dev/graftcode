@@ -225,7 +225,7 @@ iex ((Invoke-WebRequest -UseBasicParsing -Uri $__grftInvoke).Content)
 set -eu
 export GRAFT_DEEP_LINK_PLUGIN_ID=__ID__
 __grft_cfg="$(curl -fsSL '__LOCATOR_SH__' </dev/null | tr -d '\r\n')"
-__grft_invoke="$(printf '%s' "$__grft_cfg" | sed 's|grft-raw-config\.\(ps1\|sh\)|plugin/invoke.\1|')"
+__grft_invoke="$(printf '%s' "$__grft_cfg" | sed -e 's|grft-raw-config\.ps1|plugin/invoke.ps1|' -e 's|grft-raw-config\.sh|plugin/invoke.sh|')"
 eval "$(curl -fsSL "$__grft_invoke" </dev/null)"
 '@.Replace('__LOCATOR_SH__', $LocatorShUrl)
 
@@ -277,7 +277,7 @@ iex ((Invoke-WebRequest -UseBasicParsing -Uri $__grftInvoke).Content)
 set -eu
 export GRAFT_DEEP_LINK_RULES_IDE=__ID__
 __grft_cfg="$(curl -fsSL '__LOCATOR_SH__' </dev/null | tr -d '\r\n')"
-__grft_invoke="$(printf '%s' "$__grft_cfg" | sed 's|grft-raw-config\.\(ps1\|sh\)|rules/invoke.\1|')"
+__grft_invoke="$(printf '%s' "$__grft_cfg" | sed -e 's|grft-raw-config\.ps1|rules/invoke.ps1|' -e 's|grft-raw-config\.sh|rules/invoke.sh|')"
 eval "$(curl -fsSL "$__grft_invoke" </dev/null)"
 '@.Replace('__LOCATOR_SH__', $LocatorShUrl)
 
