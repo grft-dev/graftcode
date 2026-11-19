@@ -18,7 +18,7 @@ elseif ($libPath -and (Test-Path -LiteralPath $libPath)) {
     . $libPath
 }
 else {
-    throw 'Set $GrftCliRawBase from get/plugin or plugin stub before pipe | iex.'
+    throw 'Set $GrftCliRawBase or GRFT_CLI_RAW_BASE before pipe | iex.'
 }
 
 Initialize-GrftCliRawContext

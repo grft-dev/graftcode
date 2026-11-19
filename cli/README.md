@@ -52,14 +52,14 @@ When `grft` runs from `~/.grft`, it checks `cli/VERSION` on GitHub and self-upda
 ## Branch / pre-merge testing (raw)
 
 1. Edit **`cli/grft-raw-config.ps1`** — only `$GrftCliGitRef` (e.g. `feature/5272-grft-cli-installer-dx`).
-2. Run **`.\cli\scripts\sync-plugins-manifest.ps1`** (refreshes `plugin/*`, `rules/*`, and `cli/get/*` shims with `$GrftCliRawBase`).
-3. Push, then pipe (`.ps1` on raw):
+2. Run **`.\cli\scripts\sync-plugins-manifest.ps1`** (refreshes `plugin/*`, `rules/*`, `grft-raw-config.sh`, invoke bootstrap URLs).
+3. Push, then pipe — **jedna baza** w `grft-raw-config.ps1`; stuby tylko wołają `invoke`:
 
 ```powershell
 . .\cli\grft-raw-config.ps1
-iwr "$GrftCliRawBase/get/gg.ps1" -UseBasicParsing | iex
-iwr "$GrftCliRawBase/get/plugin/rabbitmq.ps1" -UseBasicParsing | iex
-iwr "$GrftCliRawBase/get/rules/cursor.ps1" -UseBasicParsing | iex
+iwr "$GrftCliRawBase/gg.ps1" -UseBasicParsing | iex
+iwr "$GrftCliRawBase/plugin/rabbitmq.ps1" -UseBasicParsing | iex
+iwr "$GrftCliRawBase/rules/cursor.ps1" -UseBasicParsing | iex
 ```
 
 Reset **`$GrftCliGitRef`** to `main` and re-run sync before merge. Production (after merge): **`iwr https://grft.dev/get/gg | iex`**, **`iwr https://grft.dev/get/rules/cursor | iex`**, **`iwr https://grft.dev/get/plugin/rabbitmq | iex`**.

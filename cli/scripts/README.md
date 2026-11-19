@@ -25,6 +25,8 @@ Keeps [`plugins.manifest.json`](../plugins.manifest.json) aligned with [graftcod
 
 Requires network (GitHub API). No token needed for public releases under normal rate limits.
 
-**Also writes** `cli/plugin/{id}.ps1` and `{id}.sh` — plugin id + single `iex`/`eval` of [`invoke.ps1`](../plugin/invoke.ps1) / `invoke.sh` (local vs raw routing lives there).
+**Also writes** `cli/plugin/{id}.*`, `cli/rules/{ide}.*` (deep links for `grft.dev/get/...`), `grft-raw-config.sh`, and updates config URLs in `rules|plugin/invoke.*`.
 
-Shared (never generated): `invoke.ps1`, `invoke.sh`, `deep-link.ps1`, `deep-link.sh`.
+Single source for raw base: [`grft-raw-config.ps1`](../grft-raw-config.ps1) (`$GrftCliRepoRawRoot` + `/cli`).
+
+Shared (never generated): `deep-link.ps1`, `deep-link.sh`. `invoke.*` loads `grft-raw-config.*` when env is unset.

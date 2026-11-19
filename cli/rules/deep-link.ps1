@@ -21,6 +21,10 @@ else {
 }
 
 Initialize-GrftCliRawContext
+$GrftRawBase = $script:GrftRawBase
+if ($GrftRawBase) {
+    $env:GRFT_CLI_RAW_BASE = $GrftRawBase
+}
 
 $rulesDir = $PSScriptRoot
 $cliRoot = if ($rulesDir) { Split-Path -Parent $rulesDir } else { $null }

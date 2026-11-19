@@ -2,6 +2,25 @@ if (-not $GrftDeepLinkPluginId) {
     throw 'Set $GrftDeepLinkPluginId in the plugin stub before running invoke.ps1.'
 }
 
+if (-not $GrftCliRawBase -and $env:GRFT_CLI_RAW_BASE) {
+    $GrftCliRawBase = $env:GRFT_CLI_RAW_BASE.TrimEnd('/')
+}
+
+$GrftRawLocatorPs1Url = 'https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/feature/5272-grft-cli-installer-dx/cli/grft-raw-locator.ps1'
+if (-not $GrftCliRawBase) {
+    $importPath = if ($PSScriptRoot) { Join-Path $PSScriptRoot '..\lib\grft-import-raw-config.ps1' } else { $null }
+    if ($importPath -and (Test-Path -LiteralPath $importPath)) {
+        . $importPath
+    }
+    else {
+        $libBase = $GrftRawLocatorPs1Url -replace '/grft-raw-locator\.ps1$', ''
+        $tmp = Join-Path $env:TEMP 'grft-import-raw-config.ps1'
+        Invoke-WebRequest -Uri "$libBase/lib/grft-import-raw-config.ps1" -OutFile $tmp -UseBasicParsing
+        . $tmp
+    }
+    Import-GrftCliRawConfigForPipe
+}
+
 $savedCliRawBase = if ($GrftCliRawBase) { $GrftCliRawBase.TrimEnd('/') } elseif ($script:GrftCliRawBase) { $script:GrftCliRawBase.TrimEnd('/') } else { $null }
 
 $libPath = if ($PSScriptRoot) { Join-Path $PSScriptRoot '..\lib\grft-cli-raw.ps1' } else { $null }
@@ -14,7 +33,7 @@ elseif ($GrftCliRawBase) {
     . ([ScriptBlock]::Create([string]$content))
 }
 else {
-    throw 'Set $GrftCliRawBase from get/plugin or plugin stub before pipe | iex.'
+    throw 'grft-raw-config.ps1 must set $GrftCliRawBase.'
 }
 
 Initialize-GrftCliRawContext

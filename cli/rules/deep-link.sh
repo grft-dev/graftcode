@@ -7,7 +7,12 @@ if [ -z "${GRAFT_DEEP_LINK_RULES_IDE:-}" ]; then
 fi
 
 IDE="$GRAFT_DEEP_LINK_RULES_IDE"
-CLI_RAW_BASE="${CLI_RAW_BASE:-https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli}"
+CLI_RAW_BASE="${CLI_RAW_BASE:-${GRFT_CLI_RAW_BASE:-}}"
+if [ -z "$CLI_RAW_BASE" ]; then
+  echo "Error: GRFT_CLI_RAW_BASE must be set (invoke.sh loads grft-raw-config.sh)" >&2
+  exit 1
+fi
+export GRFT_CLI_RAW_BASE="$CLI_RAW_BASE"
 GRAFT_ROOT="${GRAFT_ROOT:-}"
 
 cli_dir="${GRAFT_CLI_DIR:-}"

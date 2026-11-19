@@ -12,6 +12,9 @@ function Import-GrftCliRawConfig {
     if ($script:GrftCliRawBase -and $script:GrftRulesRawBase) {
         return
     }
+    if (-not $GrftCliRawBase -and $env:GRFT_CLI_RAW_BASE) {
+        $GrftCliRawBase = $env:GRFT_CLI_RAW_BASE
+    }
     if ($GrftCliRawBase) {
         $script:GrftCliRawBase = $GrftCliRawBase.TrimEnd('/')
         $script:GrftRulesRawBase = ($script:GrftCliRawBase -replace '/cli$', '/rules')

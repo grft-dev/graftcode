@@ -15,7 +15,7 @@ elseif ($grftLib -and (Test-Path -LiteralPath $grftLib)) {
     . $grftLib
 }
 else {
-    throw 'Set $GrftCliRawBase (cli/get/gg.ps1 shim after sync) before pipe | iex, or run from checkout.'
+    throw 'Set $GrftCliRawBase or GRFT_CLI_RAW_BASE before pipe | iex, or run from checkout.'
 }
 
 Initialize-GrftCliRawContext

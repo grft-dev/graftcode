@@ -8,8 +8,11 @@ if ($grftLib -and (Test-Path -LiteralPath $grftLib)) {
     . $grftLib
 }
 else {
+    if (-not $GrftCliRawBase -and $env:GRFT_CLI_RAW_BASE) {
+        $GrftCliRawBase = $env:GRFT_CLI_RAW_BASE
+    }
     if (-not $GrftCliRawBase) {
-        throw 'Set $GrftCliRawBase (cli/get/*.ps1 shim after sync) before pipe | iex, or run from checkout.'
+        throw 'Set $GrftCliRawBase or GRFT_CLI_RAW_BASE (rules/plugin stub or grft-raw-config) before pipe | iex, or run from checkout.'
     }
     $tmp = Join-Path $env:TEMP 'grft-cli-raw.ps1'
     Invoke-WebRequest -Uri "$($GrftCliRawBase.TrimEnd('/'))/lib/grft-cli-raw.ps1" -OutFile $tmp -UseBasicParsing
