@@ -85,8 +85,8 @@ else
     exit 1
   fi
   export GRAFT_CLI_EPHEMERAL=1
-  graft_cli_source_lib_from_url ui.sh
-  graft_cli_source_lib_from_url gateway-installer.sh
+  graft_cli_source_lib ui.sh
+  graft_cli_source_lib gateway-installer.sh
 fi
 
 install_gg_to_cwd

@@ -113,10 +113,10 @@ else
   export GRAFT_CLI_EPHEMERAL=1
   GRAFT_PLUGIN_MANIFEST_TMP="$(mktemp)"
   curl -fsSL "$CLI_RAW_BASE/plugins.manifest.json" -o "$GRAFT_PLUGIN_MANIFEST_TMP"
-  graft_cli_source_lib_from_url ui.sh
-  graft_cli_source_lib_from_url gateway-installer.sh
-  graft_cli_source_lib_from_url plugin-manifest.sh
-  graft_cli_source_lib_from_url plugin-installer.sh
+  graft_cli_source_lib ui.sh
+  graft_cli_source_lib gateway-installer.sh
+  graft_cli_source_lib plugin-manifest.sh
+  graft_cli_source_lib plugin-installer.sh
 fi
 
 manifest="$(graft_plugin_manifest_path)"
