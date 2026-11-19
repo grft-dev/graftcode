@@ -18,9 +18,20 @@ ui_stderr_is_tty() {
   [ -t 2 ]
 }
 
+ui_dev_tty_writable() {
+  if ! [ -e /dev/tty ]; then
+    return 1
+  fi
+  ( exec 3>/dev/tty ) 2>/dev/null
+}
+
+ui_progress_is_tty() {
+  ui_is_tty || ui_stderr_is_tty || ui_dev_tty_writable
+}
+
 ui_wants_download_progress() {
   show_progress="$1"
-  [ "$show_progress" = 1 ] && { ui_is_tty || ui_stderr_is_tty; }
+  [ "$show_progress" = 1 ] && ui_progress_is_tty
 }
 
 ui_say() {
@@ -137,8 +148,31 @@ ui_write_bracket_progress() {
     bar="${bar}-"
     i=$((i + 1))
   done
+  if ! ui_progress_is_tty; then
+    return 0
+  fi
+  line="$(printf '\r\033[38;2;%sm[%s]\033[0m %s%%' "$UI_PROGRESS_RGB" "$bar" "$pct")"
   if ui_is_tty; then
-    printf '\r\033[38;2;%sm[%s]\033[0m %s%%' "$UI_PROGRESS_RGB" "$bar" "$pct"
+    printf '%s' "$line"
+  elif ui_stderr_is_tty; then
+    printf '%s' "$line" >&2
+  elif ui_dev_tty_writable; then
+    printf '%s' "$line" >/dev/tty
+  fi
+}
+
+ui_write_indeterminate_progress() {
+  spin="${1:-|}"
+  if ! ui_progress_is_tty; then
+    return 0
+  fi
+  line="$(printf '\r\033[38;2;%sm[%s] Downloading...\033[0m' "$UI_PROGRESS_RGB" "$spin")"
+  if ui_is_tty; then
+    printf '%s' "$line"
+  elif ui_stderr_is_tty; then
+    printf '%s' "$line" >&2
+  elif ui_dev_tty_writable; then
+    printf '%s' "$line" >/dev/tty
   fi
 }
 
@@ -163,20 +197,37 @@ ui_download_with_bracket_progress() {
   curl -fsSL "$url" -o "$output" &
   curl_pid=$!
 
+  spin_idx=0
+
   while kill -0 "$curl_pid" 2>/dev/null; do
     if [ -f "$output" ] && [ "$total" -gt 0 ] 2>/dev/null; then
       size="$(wc -c <"$output" | tr -d ' ')"
       pct=$((size * 100 / total))
       if [ "$pct" -gt 100 ]; then pct=100; fi
       ui_write_bracket_progress "$pct"
+    else
+      case $((spin_idx % 4)) in
+        0) spin_char='|' ;;
+        1) spin_char='/' ;;
+        2) spin_char='-' ;;
+        *) spin_char='\' ;;
+      esac
+      spin_idx=$((spin_idx + 1))
+      ui_write_indeterminate_progress "$spin_char"
     fi
     sleep 0.15
   done
 
   wait "$curl_pid" || exit 1
   ui_write_bracket_progress 100
-  if ui_is_tty; then
-    printf '\n'
+  if ui_progress_is_tty; then
+    if ui_is_tty; then
+      printf '\n'
+    elif ui_stderr_is_tty; then
+      printf '\n' >&2
+    elif ui_dev_tty_writable; then
+      printf '\n' >/dev/tty
+    fi
   fi
 }
 

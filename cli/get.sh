@@ -29,11 +29,21 @@ say_no_newline() {
   printf '%s' "$1"
 }
 
+grft_dev_tty_usable() {
+  if ! [ -e /dev/tty ]; then
+    return 1
+  fi
+  ( exec 3</dev/tty ) 2>/dev/null
+}
+
 grft_is_interactive_tty() {
   if [ -t 0 ] && [ -t 1 ]; then
     return 0
   fi
-  if [ -t 1 ] && [ -r /dev/tty ]; then
+  if [ -t 1 ] || [ -t 2 ]; then
+    return 0
+  fi
+  if ! [ -t 0 ] && grft_dev_tty_usable; then
     return 0
   fi
   return 1
@@ -522,6 +532,12 @@ uninstall_grft() {
 }
 
 run_interactive() {
+  if ! grft_is_interactive_tty; then
+    say "No interactive terminal — use non-interactive commands:"
+    show_help
+    exit 2
+  fi
+
   show_intro
 
   say "What do you want to do?"
@@ -554,13 +570,7 @@ run_interactive() {
 
 run_command() {
   if [ "$#" -eq 0 ]; then
-    if grft_is_interactive_tty; then
-      run_interactive
-    else
-      say "No interactive terminal — use non-interactive commands:"
-      show_help
-      exit 2
-    fi
+    run_interactive
     return 0
   fi
 
@@ -589,13 +599,7 @@ run_command() {
   esac
 
   if [ "$#" -eq 1 ]; then
-    if grft_is_interactive_tty; then
-      run_interactive
-    else
-      say "No interactive terminal — use non-interactive commands:"
-      show_help
-      exit 2
-    fi
+    run_interactive
     return 0
   fi
 
