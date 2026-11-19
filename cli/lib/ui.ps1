@@ -253,9 +253,6 @@ function Ui-DownloadFile {
     Invoke-WebRequest -Uri $Url -OutFile $OutputPath
   }
 
-  if (-not $ShowProgress) {
-    Ui-Say "Downloaded $Label"
-  }
 }
 
 function Show-UiGatewayInstalled {

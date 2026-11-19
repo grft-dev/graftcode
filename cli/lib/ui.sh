@@ -38,6 +38,41 @@ ui_say() {
   echo "$@"
 }
 
+ui_can_emit_color() {
+  ui_is_tty || ui_stderr_is_tty || ui_dev_tty_writable
+}
+
+ui_say_green() {
+  msg="$1"
+  if ! ui_can_emit_color; then
+    ui_say "$msg"
+    return 0
+  fi
+  esc="$(printf '\033')"
+  colored="${esc}[32m${msg}${esc}[0m"
+  if ui_is_tty; then
+    printf '%s\n' "$colored"
+  elif ui_stderr_is_tty; then
+    printf '%s\n' "$colored" >&2
+  elif ui_dev_tty_writable; then
+    printf '%s\n' "$colored" >/dev/tty
+  fi
+}
+
+ui_fetch_url() {
+  url="$1"
+  output="$2"
+  parent="$(dirname "$output")"
+  if [ -n "$parent" ] && [ "$parent" != "." ]; then
+    mkdir -p "$parent"
+  fi
+  if ! ui_has_cmd curl; then
+    ui_say "Error: curl is required to download."
+    exit 1
+  fi
+  curl -fsSL "$url" -o "$output" </dev/null
+}
+
 ui_maybe_clear() {
   if ui_is_tty; then
     clear 2>/dev/null || true
@@ -246,15 +281,13 @@ ui_download_file() {
     ui_say "Error: curl, wget or busybox wget is required to download files."
     exit 1
   fi
-
-  ui_say "Downloaded $label"
 }
 
 ui_show_installed_binary() {
   output_path="$1"
   release_tag="${2:-}"
   ui_say ""
-  ui_say "Installed Graftcode Gateway:"
+  ui_say_green "Installed Graftcode Gateway:"
   if [ -n "$release_tag" ]; then
     ui_say "Version: $release_tag"
   fi
@@ -286,7 +319,7 @@ ui_show_rules_installed() {
   ide_label="$1"
   shift
   ui_say ""
-  ui_say "Installed Graftcode $ide_label rules in:"
+  ui_say_green "Installed Graftcode $ide_label rules in:"
   while [ $# -gt 0 ]; do
     ui_say "$1"
     shift
@@ -299,13 +332,19 @@ ui_show_plugin_installed() {
   installed_list="$3"
 
   ui_say ""
-  ui_say "$installed_list"
+  if [ -n "$installed_list" ]; then
+    # shellcheck disable=SC2039
+    printf '%s\n' "$installed_list" | while IFS= read -r line || [ -n "$line" ]; do
+      [ -z "$line" ] && continue
+      ui_say_green "$line"
+    done
+  fi
   ui_say ""
-  ui_say "Installed Graftcode $plugin_label plugin in:"
+  ui_say_green "Installed Graftcode $plugin_label plugin in:"
   ui_say "$install_dir"
 }
 
 ui_show_done() {
   ui_say ""
-  ui_say "Done."
+  ui_say_green "Done."
 }

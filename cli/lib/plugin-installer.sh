@@ -103,10 +103,13 @@ install_plugin() {
   fi
 
   release_json="$(mktemp)"
-  if command -v ui_download_file >/dev/null 2>&1; then
-    ui_download_file "https://api.github.com/repos/$plugins_repo/releases/latest" "$release_json" "latest release metadata" 0
+  if command -v ui_fetch_url >/dev/null 2>&1; then
+    ui_fetch_url "https://api.github.com/repos/$plugins_repo/releases/latest" "$release_json"
+  elif has_cmd curl; then
+    curl -fsSL "https://api.github.com/repos/$plugins_repo/releases/latest" -o "$release_json" </dev/null
   else
-    download_file "https://api.github.com/repos/$plugins_repo/releases/latest" "$release_json" "latest release metadata"
+    say "Error: curl is required to fetch plugin release metadata."
+    exit 1
   fi
 
   release_tag="$(

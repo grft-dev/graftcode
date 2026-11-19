@@ -39,7 +39,10 @@ $GraftGatewayInstallerPath = Join-Path (Join-Path $GraftCliDir 'lib') 'gateway-i
 . (Join-Path (Join-Path $GraftCliDir 'lib') 'plugin-manifest.ps1')
 . (Join-Path (Join-Path $GraftCliDir 'lib') 'plugin-installer.ps1')
 . (Join-Path (Join-Path $GraftCliDir 'lib') 'rules-installer.ps1')
+. (Join-Path (Join-Path $GraftCliDir 'lib') 'installer-copy.ps1')
 $script:GraftGatewayInstallerLibsLoaded = $true
+$script:CliDir = $GraftCliDir
+$script:CliRawBase = $GrftRawBase
 
 function Test-GrftInteractiveConsole {
     -not [Console]::IsInputRedirected -and -not [Console]::IsOutputRedirected
@@ -59,32 +62,13 @@ function Show-GraftcodeIntro {
     Write-UiBrandLogo (Get-UiGatewayLogoText)
     Write-Host ''
 
-    Write-Host "Graftcode helps you generate AI code that integrates through Graftcode." -ForegroundColor White
-    Write-Host "It can reduce boilerplate, simplify PRs, and save up to 80% of tokens." -ForegroundColor White
-    Write-Host ""
-    Write-Host "This installer can:" -ForegroundColor Yellow
-    Write-Host "  1. Download Graftcode Rules file for your IDE"
-    Write-Host "     - so AI can generate code that integrates everything through Graftcode"
-    Write-Host "  2. Download Graftcode Gateway"
-    Write-Host "     - gateway for your processor"
-    Write-Host "  3. Download Graftcode Plugins"
     try {
         $PluginNames = Get-GraftPluginHelpNames
     }
     catch {
         $PluginNames = $null
     }
-    if ($PluginNames) {
-        Write-Host "     - messaging plugins for the gateway ($PluginNames)"
-    }
-    else {
-        Write-Host "     - messaging plugins for the gateway"
-    }
-    if (Test-GrftHomePresent) {
-        Write-Host "  4. Uninstall Graftcode CLI"
-        Write-Host "     - remove ~/.grft and PATH entry"
-    }
-    Write-Host ""
+    Write-GrftInstallerIntro -PluginNames $PluginNames -IncludeUninstallHint:$(Test-GrftHomePresent)
 }
 
 function Read-MenuChoice {
@@ -375,18 +359,12 @@ function Show-GrftHelp {
 function Invoke-GrftInteractive {
     Show-GraftcodeIntro
 
-    Write-Host "What do you want to do?" -ForegroundColor Yellow
-    Write-Host "  1. Graftcode Rules file"
-    Write-Host "  2. Graftcode Gateway"
-    Write-Host "  3. Graftcode Plugins"
+    Write-GrftInstallerMenu -IncludeUninstall:$(Test-GrftHomePresent)
 
     $Allowed = @('1', '2', '3')
     if (Test-GrftHomePresent) {
-        Write-Host "  4. Uninstall Graftcode CLI"
         $Allowed += '4'
     }
-
-    Write-Host ""
     $Prompt = if ($Allowed.Count -eq 4) { "Enter choice [1/2/3/4]" } else { "Enter choice [1/2/3]" }
     $Choice = Read-MenuChoice -Prompt $Prompt -AllowedChoices $Allowed
 

@@ -323,7 +323,14 @@ install_gg_to_cwd() {
     gi_say "OS: $os_name | CPU: $arch_suffix"
   fi
   release_json="$(mktemp)"
-  gi_download_file "https://api.github.com/repos/$GRAFT_GATEWAY_REPO/releases/latest" "$release_json" "latest release metadata" 0
+  if command -v ui_fetch_url >/dev/null 2>&1; then
+    ui_fetch_url "https://api.github.com/repos/$GRAFT_GATEWAY_REPO/releases/latest" "$release_json"
+  elif gi_has_cmd curl; then
+    curl -fsSL "https://api.github.com/repos/$GRAFT_GATEWAY_REPO/releases/latest" -o "$release_json" </dev/null
+  else
+    gi_say "Error: curl is required to fetch Gateway release metadata."
+    exit 1
+  fi
 
   release_tag="$(gi_release_tag_from_json "$release_json")"
   if command -v ui_obtaining_latest_release >/dev/null 2>&1; then

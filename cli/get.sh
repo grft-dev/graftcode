@@ -51,6 +51,15 @@ grft_is_interactive_tty() {
   return 1
 }
 
+graft_cli_show_done() {
+  if command -v ui_show_done >/dev/null 2>&1; then
+    ui_show_done
+    return 0
+  fi
+  say ""
+  say "Done."
+}
+
 graft_cli_ensure_ui_lib() {
   if [ -n "${GRAFT_UI_LIB_LOADED:-}" ]; then
     return 0
@@ -76,6 +85,39 @@ graft_cli_ensure_ui_lib() {
   GRAFT_UI_LIB_LOADED=1
 }
 
+graft_cli_ensure_installer_copy() {
+  if command -v grft_print_installer_intro >/dev/null 2>&1; then
+    return 0
+  fi
+  case "$0" in
+    */*)
+      sd="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+      if [ -f "$sd/lib/installer-copy.sh" ]; then
+        sh_local="$(mktemp)"
+        sed 's/\r$//' "$sd/lib/installer-copy.sh" > "$sh_local"
+        # shellcheck source=/dev/null
+        . "$sh_local"
+        rm -f "$sh_local"
+        return 0
+      fi
+      ;;
+  esac
+  CLI_RAW_BASE="${CLI_RAW_BASE:-$GRFT_RAW_BASE}"
+  if ! command -v curl >/dev/null 2>&1; then
+    return 1
+  fi
+  ic_tmp="$(mktemp)"
+  curl -fsSL "$CLI_RAW_BASE/lib/installer-copy.sh" -o "$ic_tmp" </dev/null || {
+    rm -f "$ic_tmp"
+    return 1
+  }
+  sh_local="$(mktemp)"
+  sed 's/\r$//' "$ic_tmp" > "$sh_local"
+  # shellcheck source=/dev/null
+  . "$sh_local"
+  rm -f "$ic_tmp" "$sh_local"
+}
+
 grft_plugin_ids_from_raw_manifest() {
   if ! command -v curl >/dev/null 2>&1; then
     return 1
@@ -96,15 +138,7 @@ show_intro() {
     say ""
   fi
 
-  say "Graftcode helps you generate AI code that integrates through Graftcode."
-  say "It can reduce boilerplate, simplify PRs, and save up to 80% of tokens."
-  say ""
-  say "This installer can:"
-  say "  1. Download Graftcode Rules file for your IDE"
-  say "     - so AI can generate code that integrates everything through Graftcode"
-  say "  2. Download Graftcode Gateway"
-  say "     - gateway for your processor"
-  say "  3. Download Graftcode Plugins"
+  graft_cli_ensure_installer_copy || true
   plugin_manifest=""
   script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
   if [ -n "${GRAFT_CLI_DIR:-}" ] && [ -f "$GRAFT_CLI_DIR/plugins.manifest.json" ]; then
@@ -120,16 +154,33 @@ show_intro() {
   elif plugin_names="$(grft_plugin_ids_from_raw_manifest)" && [ -n "$plugin_names" ]; then
     :
   fi
-  if [ -n "$plugin_names" ]; then
-    say "     - messaging plugins for the gateway ($plugin_names)"
-  else
-    say "     - messaging plugins for the gateway"
-  fi
+  uninst_hint=0
   if is_grft_home_present; then
-    say "  4. Uninstall Graftcode CLI"
-    say "     - remove ~/.grft and PATH entry"
+    uninst_hint=1
   fi
-  say ""
+  if command -v grft_print_installer_intro >/dev/null 2>&1; then
+    grft_print_installer_intro "$plugin_names" "$uninst_hint"
+  else
+    say "Graftcode helps you generate AI code that integrates through Graftcode."
+    say "It can reduce boilerplate, simplify PRs, and save up to 80% of tokens."
+    say ""
+    say "This installer can:"
+    say "  1. Download Graftcode Rules file for your IDE"
+    say "     - so AI can generate code that integrates everything through Graftcode"
+    say "  2. Download Graftcode Gateway"
+    say "     - gateway for your processor"
+    say "  3. Download Graftcode Plugins"
+    if [ -n "$plugin_names" ]; then
+      say "     - messaging plugins for the gateway ($plugin_names)"
+    else
+      say "     - messaging plugins for the gateway"
+    fi
+    if [ "$uninst_hint" = 1 ]; then
+      say "  4. Uninstall Graftcode CLI"
+      say "     - remove ~/.grft and PATH entry"
+    fi
+    say ""
+  fi
 }
 
 has_cmd() {
@@ -607,17 +658,26 @@ run_interactive() {
 
   show_intro
 
-  say "What do you want to do?"
-  say "  1. Graftcode Rules file"
-  say "  2. Graftcode Gateway"
-  say "  3. Graftcode Plugins"
-
+  uninst_menu=0
   if is_grft_home_present; then
-    say "  4. Uninstall Graftcode CLI"
+    uninst_menu=1
+  fi
+  if command -v grft_print_installer_menu >/dev/null 2>&1; then
+    grft_print_installer_menu "$uninst_menu"
+  else
+    say "What do you want to do?"
+    say "  1. Graftcode Rules file"
+    say "  2. Graftcode Gateway"
+    say "  3. Graftcode Plugins"
+    if [ "$uninst_menu" = 1 ]; then
+      say "  4. Uninstall Graftcode CLI"
+    fi
     say ""
+  fi
+
+  if [ "$uninst_menu" = 1 ]; then
     choice="$(read_choice_set "1 2 3 4" "1/2/3/4")"
   else
-    say ""
     choice="$(read_choice_set "1 2 3" "1/2/3")"
   fi
 
@@ -631,8 +691,7 @@ run_interactive() {
       ;;
   esac
 
-  say ""
-  say "Done."
+  graft_cli_show_done
 }
 
 run_command() {
@@ -697,8 +756,7 @@ run_command() {
       ;;
   esac
 
-  say ""
-  say "Done."
+  graft_cli_show_done
 }
 
 maybe_self_update "$@"

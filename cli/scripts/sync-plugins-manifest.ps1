@@ -205,7 +205,8 @@ function Write-PluginDeepLinkStubs {
     param(
         [string[]]$PluginIds,
         [string]$PluginDir,
-        [string]$RawCli
+        [string]$LocatorPsUrl,
+        [string]$LocatorShUrl
     )
 
     if (-not (Test-Path -LiteralPath $PluginDir)) {
@@ -214,15 +215,19 @@ function Write-PluginDeepLinkStubs {
 
     $psStub = @'
 $GrftDeepLinkPluginId = '__ID__'
-iex ((Invoke-WebRequest -UseBasicParsing -Uri "$($GrftCliRawBase.TrimEnd('/'))/plugin/invoke.ps1").Content)
-'@
+$__grftCfg = (Invoke-WebRequest -UseBasicParsing -Uri '__LOCATOR_PS__').Content.Trim()
+$__grftInvoke = $__grftCfg -replace 'grft-raw-config\.ps1$','plugin/invoke.ps1'
+iex ((Invoke-WebRequest -UseBasicParsing -Uri $__grftInvoke).Content)
+'@.Replace('__LOCATOR_PS__', $LocatorPsUrl)
 
     $shStub = @'
 #!/bin/sh
 set -eu
 export GRAFT_DEEP_LINK_PLUGIN_ID=__ID__
-eval "$(curl -fsSL "${GRFT_CLI_RAW_BASE:?}/plugin/invoke.sh" </dev/null)"
-'@
+__grft_cfg="$(curl -fsSL '__LOCATOR_SH__' </dev/null | tr -d '\r\n')"
+__grft_invoke="$(printf '%s' "$__grft_cfg" | sed 's|grft-raw-config\.\(ps1\|sh\)|plugin/invoke.\1|')"
+eval "$(curl -fsSL "$__grft_invoke" </dev/null)"
+'@.Replace('__LOCATOR_SH__', $LocatorShUrl)
 
     $expected = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
     foreach ($id in $PluginIds) {
@@ -251,7 +256,8 @@ function Write-RulesDeepLinkStubs {
     param(
         [string[]]$RulesIds,
         [string]$RulesDir,
-        [string]$RawCli,
+        [string]$LocatorPsUrl,
+        [string]$LocatorShUrl,
         [System.Text.UTF8Encoding]$Utf8NoBom
     )
 
@@ -261,15 +267,19 @@ function Write-RulesDeepLinkStubs {
 
     $psStub = @'
 $GrftDeepLinkRulesIde = '__ID__'
-iex ((Invoke-WebRequest -UseBasicParsing -Uri "$($GrftCliRawBase.TrimEnd('/'))/rules/invoke.ps1").Content)
-'@
+$__grftCfg = (Invoke-WebRequest -UseBasicParsing -Uri '__LOCATOR_PS__').Content.Trim()
+$__grftInvoke = $__grftCfg -replace 'grft-raw-config\.ps1$','rules/invoke.ps1'
+iex ((Invoke-WebRequest -UseBasicParsing -Uri $__grftInvoke).Content)
+'@.Replace('__LOCATOR_PS__', $LocatorPsUrl)
 
     $shStub = @'
 #!/bin/sh
 set -eu
 export GRAFT_DEEP_LINK_RULES_IDE=__ID__
-eval "$(curl -fsSL "${GRFT_CLI_RAW_BASE:?}/rules/invoke.sh" </dev/null)"
-'@
+__grft_cfg="$(curl -fsSL '__LOCATOR_SH__' </dev/null | tr -d '\r\n')"
+__grft_invoke="$(printf '%s' "$__grft_cfg" | sed 's|grft-raw-config\.\(ps1\|sh\)|rules/invoke.\1|')"
+eval "$(curl -fsSL "$__grft_invoke" </dev/null)"
+'@.Replace('__LOCATOR_SH__', $LocatorShUrl)
 
     $expected = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
     foreach ($ide in $RulesIds) {
@@ -380,8 +390,10 @@ Write-GrftRawConfigShell -CliRoot $ScriptDir -RawCli $rawCli -Utf8NoBom $utf8NoB
 Write-GrftRawLocators -CliRoot $ScriptDir -RawCli $rawCli -Utf8NoBom $utf8NoBom
 Update-GrftInvokeLocatorUrls -CliRoot $ScriptDir -RawCli $rawCli -Utf8NoBom $utf8NoBom
 Remove-LegacyGetShims -CliRoot $ScriptDir
-Write-PluginDeepLinkStubs -PluginIds $releaseIds -PluginDir $pluginDir -RawCli $rawCli
-Write-RulesDeepLinkStubs -RulesIds $RulesIdeIds -RulesDir $rulesDir -RawCli $rawCli -Utf8NoBom $utf8NoBom
+$locatorPsUrl = "$($rawCli.TrimEnd('/'))/grft-raw-locator.ps1"
+$locatorShUrl = "$($rawCli.TrimEnd('/'))/grft-raw-locator.sh"
+Write-PluginDeepLinkStubs -PluginIds $releaseIds -PluginDir $pluginDir -LocatorPsUrl $locatorPsUrl -LocatorShUrl $locatorShUrl
+Write-RulesDeepLinkStubs -RulesIds $RulesIdeIds -RulesDir $rulesDir -LocatorPsUrl $locatorPsUrl -LocatorShUrl $locatorShUrl -Utf8NoBom $utf8NoBom
 
 Write-Host "Wrote $ManifestPath"
 Write-Host "  cli raw base (grft-raw-config.ps1): $rawCli"

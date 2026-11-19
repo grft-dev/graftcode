@@ -1,7 +1,7 @@
 # Ensures a persistent Graftcode CLI layout under GRAFT_CLI_DIR / GRFT_HOME (mirrors ensure-ps-cli-layout.ps1).
 # Dot-source only; call graft_cli_initialize_cli_layout after setting CLI_RAW_BASE or GRFT_RAW_BASE.
 
-GRAFT_CLI_LAYOUT_LIB_NAMES="ui.sh gateway-installer.sh plugin-manifest.sh plugin-installer.sh rules-installer.sh"
+GRAFT_CLI_LAYOUT_LIB_NAMES="ui.sh gateway-installer.sh plugin-manifest.sh plugin-installer.sh rules-installer.sh installer-copy.sh"
 
 graft_cli_layout_has_cmd() {
   command -v "$1" >/dev/null 2>&1
@@ -57,6 +57,13 @@ graft_cli_layout_ensure_assets() {
     graft_cli_layout_download "$base/assets/logo_ascii.txt" "$logo_path" "assets/logo_ascii.txt" 2>/dev/null || true
   fi
 
+  for asset in installer-intro.txt installer-menu.txt; do
+    out="$root/assets/$asset"
+    if [ ! -f "$out" ] || [ ! -s "$out" ]; then
+      graft_cli_layout_download "$base/assets/$asset" "$out" "assets/$asset" 2>/dev/null || true
+    fi
+  done
+
   return 0
 }
 
@@ -74,7 +81,7 @@ graft_cli_layout_ensure_lib_files() {
   done
 
   ui_path="$lib_dir/ui.sh"
-  if [ -f "$ui_path" ] && ! grep -q 'ui_show_plugin_installed' "$ui_path" 2>/dev/null; then
+  if [ -f "$ui_path" ] && { ! grep -q 'ui_show_plugin_installed' "$ui_path" 2>/dev/null || ! grep -q 'ui_say_green' "$ui_path" 2>/dev/null; }; then
     graft_cli_layout_download "$base/lib/ui.sh" "$ui_path" "lib/ui.sh" || return 1
   fi
 
