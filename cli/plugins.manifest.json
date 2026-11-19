@@ -2,7 +2,7 @@
     "schemaVersion":  1,
     "repo":  "grft-dev/graftcode-extensions",
     "releaseTag":  "v1.2.0",
-    "syncedAt":  "2026-11-19T09:52:35Z",
+    "syncedAt":  "2026-11-19T10:38:00Z",
     "assetPattern":  "{id}-{os}-{arch}.tar.gz",
     "plugins":  [
                     {

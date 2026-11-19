@@ -129,6 +129,27 @@ iex ((Invoke-WebRequest -Uri "`$GrftCliRawBase/gg.ps1" -UseBasicParsing).Content
 "@
     [System.IO.File]::WriteAllText((Join-Path $getDir 'gg.ps1'), $ggPs + "`n", $Utf8NoBom)
 
+    $ggSh = @"
+#!/bin/sh
+# grft:get=gg (raw path mirrors grft.dev/get/gg)
+set -eu
+GRFT_CLI_RAW_BASE='$RawCli'
+export GRFT_CLI_RAW_BASE
+eval "`$(curl -fsSL "`$GRFT_CLI_RAW_BASE/gg.sh")"
+"@
+    [System.IO.File]::WriteAllText((Join-Path $getDir 'gg.sh'), $ggSh + "`n", $Utf8NoBom)
+
+    $getShStub = @'
+#!/bin/sh
+# grft:get=plugin/__ID__
+set -eu
+GRAFT_DEEP_LINK_PLUGIN_ID=__ID__
+export GRAFT_DEEP_LINK_PLUGIN_ID
+GRFT_CLI_RAW_BASE='__RAW_CLI__'
+export GRFT_CLI_RAW_BASE
+eval "$(curl -fsSL __RAW_CLI__/plugin/invoke.sh)"
+'@
+
     $getPsStub = @'
 # grft:get=plugin/__ID__
 $GrftDeepLinkPluginId = '__ID__'
@@ -140,6 +161,8 @@ iex ((Invoke-WebRequest -Uri "$GrftCliRawBase/plugin/invoke.ps1" -UseBasicParsin
         $safe = $id.ToLowerInvariant()
         $content = $getPsStub.Replace('__ID__', $safe).Replace('__RAW_CLI__', $RawCli)
         [System.IO.File]::WriteAllText((Join-Path $getPluginDir "$safe.ps1"), $content + "`n", $Utf8NoBom)
+        $shContent = $getShStub.Replace('__ID__', $safe).Replace('__RAW_CLI__', $RawCli)
+        [System.IO.File]::WriteAllText((Join-Path $getPluginDir "$safe.sh"), $shContent + "`n", $Utf8NoBom)
     }
 }
 
@@ -282,7 +305,7 @@ Write-GetPathShims -CliRoot $ScriptDir -RawCli $rawCli -PluginIds $releaseIds -U
 Write-Host "Wrote $ManifestPath"
 Write-Host "  cli raw base (grft-raw-config.ps1): $rawCli"
 Write-Host "  deep-link stubs: $($releaseIds -join ', ') in $pluginDir"
-Write-Host "  get/* shims: get/gg.ps1, get/plugin/{id}.ps1"
+Write-Host "  get/* shims: get/gg.ps1, get/gg.sh, get/plugin/{id}.ps1, get/plugin/{id}.sh"
 Write-Host "  release: $($releaseInfo.Tag)"
 Write-Host "  plugins: $($releaseIds -join ', ')"
 if ($oldFp -ne $newFp) {
