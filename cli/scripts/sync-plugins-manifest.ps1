@@ -124,7 +124,7 @@ function Write-GetPathShims {
 
     $ggPs = @"
 # grft:get=gg (raw path mirrors grft.dev/get/gg)
-`$GrftCliRawBase = '$RawCli'
+if (-not `$GrftCliRawBase) { `$GrftCliRawBase = '$RawCli' }
 iex ((Invoke-WebRequest -Uri "`$GrftCliRawBase/gg.ps1" -UseBasicParsing).Content)
 "@
     [System.IO.File]::WriteAllText((Join-Path $getDir 'gg.ps1'), $ggPs + "`n", $Utf8NoBom)
@@ -132,7 +132,7 @@ iex ((Invoke-WebRequest -Uri "`$GrftCliRawBase/gg.ps1" -UseBasicParsing).Content
     $getPsStub = @'
 # grft:get=plugin/__ID__
 $GrftDeepLinkPluginId = '__ID__'
-$GrftCliRawBase = '__RAW_CLI__'
+if (-not $GrftCliRawBase) { $GrftCliRawBase = '__RAW_CLI__' }
 iex ((Invoke-WebRequest -Uri "$GrftCliRawBase/plugin/invoke.ps1" -UseBasicParsing).Content)
 '@
 
@@ -157,7 +157,7 @@ function Write-PluginDeepLinkStubs {
     $psStub = @'
 # grft:plugin=__ID__
 $GrftDeepLinkPluginId = '__ID__'
-$GrftCliRawBase = '__RAW_CLI__'
+if (-not $GrftCliRawBase) { $GrftCliRawBase = '__RAW_CLI__' }
 iex ((Invoke-WebRequest -Uri "$GrftCliRawBase/plugin/invoke.ps1" -UseBasicParsing).Content)
 '@
 
