@@ -6,7 +6,7 @@ function Import-GrftCliRawConfig {
         $cliRoot = Split-Path -Parent $PSScriptRoot
         $cfg = Join-Path $cliRoot 'grft-raw-config.ps1'
         if (-not (Test-Path -LiteralPath $cfg)) {
-            throw "Missing $cfg. Edit grft-raw-config.ps1 or set GrftCliRawBase from a get shim."
+            throw ('Missing ' + $cfg + '. Edit grft-raw-config.ps1 or set GrftCliRawBase from a get shim.')
         }
         . $cfg
         return
