@@ -25,4 +25,6 @@ Keeps [`plugins.manifest.json`](../plugins.manifest.json) aligned with [graftcod
 
 Requires network (GitHub API). No token needed for public releases under normal rate limits.
 
-The install scripts (`get.sh` / `get.ps1`) will consume this file in Phase 3; until then, sync only maintains the manifest for review.
+**Also writes** `cli/plugin/{id}.ps1` and `{id}.sh` — plugin id + single `iex`/`eval` of [`invoke.ps1`](../plugin/invoke.ps1) / `invoke.sh` (local vs raw routing lives there).
+
+Shared (never generated): `invoke.ps1`, `invoke.sh`, `deep-link.ps1`, `deep-link.sh`.

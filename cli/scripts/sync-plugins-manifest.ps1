@@ -96,6 +96,56 @@ function New-PluginEntry {
     }
 }
 
+function Write-PluginDeepLinkStubs {
+    param(
+        [string[]]$PluginIds,
+        [string]$PluginDir
+    )
+
+    if (-not (Test-Path -LiteralPath $PluginDir)) {
+        New-Item -ItemType Directory -Path $PluginDir -Force | Out-Null
+    }
+
+    $rawCli = 'https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli'
+
+    $psStub = @'
+# grft:plugin=__ID__
+$GrftDeepLinkPluginId = '__ID__'
+iex ((Invoke-WebRequest -Uri '__RAW_CLI__/plugin/invoke.ps1' -UseBasicParsing).Content)
+'@
+
+    $shStub = @'
+#!/bin/sh
+# grft:plugin=__ID__
+set -eu
+GRAFT_DEEP_LINK_PLUGIN_ID=__ID__
+export GRAFT_DEEP_LINK_PLUGIN_ID
+eval "$(curl -fsSL __RAW_CLI__/plugin/invoke.sh)"
+'@
+
+    $expected = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach ($id in $PluginIds) {
+        $safe = $id.ToLowerInvariant()
+        [void]$expected.Add("$safe.ps1")
+        [void]$expected.Add("$safe.sh")
+
+        $psPath = Join-Path $PluginDir "$safe.ps1"
+        $shPath = Join-Path $PluginDir "$safe.sh"
+        $psContent = $psStub.Replace('__ID__', $safe).Replace('__RAW_CLI__', $rawCli)
+        $shContent = $shStub.Replace('__ID__', $safe).Replace('__RAW_CLI__', $rawCli)
+        [System.IO.File]::WriteAllText($psPath, $psContent + "`n", $utf8NoBom)
+        [System.IO.File]::WriteAllText($shPath, $shContent + "`n", $utf8NoBom)
+    }
+
+    foreach ($file in (Get-ChildItem -LiteralPath $PluginDir -File)) {
+        if ($file.Name -in @('deep-link.ps1', 'deep-link.sh', 'invoke.ps1', 'invoke.sh')) { continue }
+        if (-not $expected.Contains($file.Name)) {
+            Write-Host "  removed stale plugin stub: $($file.Name)"
+            Remove-Item -LiteralPath $file.FullName -Force
+        }
+    }
+}
+
 function Get-ManifestFingerprint {
     param($Manifest)
 
@@ -175,7 +225,11 @@ if ($parent -and -not (Test-Path -LiteralPath $parent)) {
 $utf8NoBom = New-Object System.Text.UTF8Encoding $false
 [System.IO.File]::WriteAllText($ManifestPath, $newJson + "`n", $utf8NoBom)
 
+$pluginDir = Join-Path $ScriptDir 'plugin'
+Write-PluginDeepLinkStubs -PluginIds $releaseIds -PluginDir $pluginDir
+
 Write-Host "Wrote $ManifestPath"
+Write-Host "  deep-link stubs: $($releaseIds -join ', ') in $pluginDir"
 Write-Host "  release: $($releaseInfo.Tag)"
 Write-Host "  plugins: $($releaseIds -join ', ')"
 if ($oldFp -ne $newFp) {
