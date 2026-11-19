@@ -91,25 +91,33 @@ graft_cli_source_lib() {
 }
 
 _cli_parent="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
-if [ -f "$_cli_parent/lib/grft-cli-layout-bootstrap.sh" ]; then
+if [ -n "$_cli_parent" ] && [ -f "$_cli_parent/lib/ui.sh" ]; then
+  GRAFT_CLI_DIR="$_cli_parent"
+  export GRAFT_CLI_DIR
+  graft_cli_source_lib ui.sh
+  graft_cli_source_lib gateway-installer.sh
+  graft_cli_source_lib plugin-manifest.sh
+  graft_cli_source_lib plugin-installer.sh
+elif [ -f "$_cli_parent/lib/grft-cli-layout-bootstrap.sh" ]; then
   graft_cli_source_sh_file "$_cli_parent/lib/grft-cli-layout-bootstrap.sh"
   graft_cli_bootstrap_layout "$_cli_parent" || exit 1
-elif command -v curl >/dev/null 2>&1; then
-  _ensure_tmp="$(mktemp)"
-  curl -fsSL "$CLI_RAW_BASE/ensure-sh-cli-layout.sh" -o "$_ensure_tmp"
-  # shellcheck source=/dev/null
-  . "$_ensure_tmp"
-  rm -f "$_ensure_tmp"
-  graft_cli_load_and_initialize_layout || exit 1
+  graft_cli_source_lib ui.sh
+  graft_cli_source_lib gateway-installer.sh
+  graft_cli_source_lib plugin-manifest.sh
+  graft_cli_source_lib plugin-installer.sh
 else
-  say "Error: curl is required to bootstrap the CLI layout."
-  exit 1
+  if ! command -v curl >/dev/null 2>&1; then
+    say "Error: curl is required to run the plugin installer."
+    exit 1
+  fi
+  export GRAFT_CLI_EPHEMERAL=1
+  GRAFT_PLUGIN_MANIFEST_TMP="$(mktemp)"
+  curl -fsSL "$CLI_RAW_BASE/plugins.manifest.json" -o "$GRAFT_PLUGIN_MANIFEST_TMP"
+  graft_cli_source_lib_from_url ui.sh
+  graft_cli_source_lib_from_url gateway-installer.sh
+  graft_cli_source_lib_from_url plugin-manifest.sh
+  graft_cli_source_lib_from_url plugin-installer.sh
 fi
-
-graft_cli_source_lib ui.sh
-graft_cli_source_lib gateway-installer.sh
-graft_cli_source_lib plugin-manifest.sh
-graft_cli_source_lib plugin-installer.sh
 
 manifest="$(graft_plugin_manifest_path)"
 label="$(graft_plugin_label_for_id "$manifest" "$PLUGIN_ID")"

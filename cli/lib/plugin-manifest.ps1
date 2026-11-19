@@ -1,6 +1,15 @@
 $script:GraftPluginManifestPath = Join-Path $GraftCliDir 'plugins.manifest.json'
 
 function Get-GraftPluginManifest {
+    if ($script:GraftPluginManifestObject) {
+        return $script:GraftPluginManifestObject
+    }
+
+    if ($script:GrftCliEphemeral -and $script:CliRawBase) {
+        $script:GraftPluginManifestObject = Invoke-RestMethod -Uri "$($script:CliRawBase)/plugins.manifest.json"
+        return $script:GraftPluginManifestObject
+    }
+
     if (-not (Test-Path -LiteralPath $script:GraftPluginManifestPath)) {
         $cached = Join-Path $GrftHome 'plugins.manifest.json'
         if (Test-Path -LiteralPath $cached) {

@@ -153,12 +153,20 @@ function Install-GraftcodeGatewayToCwd {
   $ArchSuffix = Get-NativeWindowsArchSuffix
   $AssetName = "gg_windows_${ArchSuffix}.zip"
 
+  $Existing = Get-Item -LiteralPath $OutputPath -ErrorAction SilentlyContinue
+  if ($Existing -and -not $Existing.PSIsContainer -and $Existing.Length -gt 0) {
+    Show-UiGatewayIntro
+    Ui-SayPlatformLine -Os 'windows' -Cpu $ArchSuffix
+    Show-UiGatewayInstalled -OutputPath $OutputPath
+    return
+  }
+
   Show-UiGatewayIntro
   Ui-SayPlatformLine -Os 'windows' -Cpu $ArchSuffix
-  Ui-ObtainingLatestRelease
 
   $Release = Invoke-RestMethod "https://api.github.com/repos/$Repo/releases/latest"
   $ReleaseTag = $Release.tag_name
+  Ui-ObtainingLatestRelease -ReleaseTag $ReleaseTag
   $CacheHome = Get-GraftcodeGatewayCacheHome
   $CacheRel = "windows-${ArchSuffix}/gg.exe"
 

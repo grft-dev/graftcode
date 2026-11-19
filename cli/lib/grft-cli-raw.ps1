@@ -60,7 +60,45 @@ function Import-GrftCliRawLibrary {
     if (-not $GrftCliRawBase) {
         throw 'Set $GrftCliRawBase before loading grft-cli-raw.ps1 over the network.'
     }
-    $tmp = Join-Path $env:TEMP 'grft-cli-raw.ps1'
-    Invoke-WebRequest -Uri "$($GrftCliRawBase.TrimEnd('/'))/lib/grft-cli-raw.ps1" -OutFile $tmp -UseBasicParsing
-    . $tmp
+    Import-GrftPowerShellScriptFromRaw -GrftRawBase $GrftCliRawBase -RelativePath 'lib/grft-cli-raw.ps1'
+}
+
+function Import-GrftPowerShellScriptFromRaw {
+    param(
+        [string]$GrftRawBase,
+        [string]$RelativePath
+    )
+
+    if ([string]::IsNullOrWhiteSpace($GrftRawBase)) {
+        throw 'GrftRawBase is required.'
+    }
+
+    $url = "$($GrftRawBase.TrimEnd('/'))/$($RelativePath.TrimStart('/').Replace('\', '/'))"
+    $body = (Invoke-WebRequest -Uri $url -UseBasicParsing).Content
+    if ($body -is [byte[]]) {
+        $body = [System.Text.Encoding]::UTF8.GetString($body)
+    }
+    else {
+        $body = [string]$body
+    }
+    . ([ScriptBlock]::Create($body))
+}
+
+function Invoke-GrftRemoteScriptText {
+    param([string]$Text)
+
+    if ($Text -is [byte[]]) {
+        $Text = [System.Text.Encoding]::UTF8.GetString($Text)
+    }
+    . ([ScriptBlock]::Create([string]$Text))
+}
+
+function Test-GrftPowerShellCliCheckout {
+    param([string]$CliRoot)
+
+    if ([string]::IsNullOrWhiteSpace($CliRoot)) {
+        return $false
+    }
+
+  return (Test-Path -LiteralPath (Join-Path $CliRoot 'lib\ui.ps1'))
 }

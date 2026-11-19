@@ -100,7 +100,6 @@ install_plugin() {
   if command -v ui_show_gateway_intro >/dev/null 2>&1; then
     ui_show_gateway_intro
     ui_say_platform_line "$os_name" "$cpu_display"
-    ui_obtaining_latest_release
   fi
 
   release_json="$(mktemp)"
@@ -108,6 +107,20 @@ install_plugin() {
     ui_download_file "https://api.github.com/repos/$plugins_repo/releases/latest" "$release_json" "latest release metadata" 0
   else
     download_file "https://api.github.com/repos/$plugins_repo/releases/latest" "$release_json" "latest release metadata"
+  fi
+
+  release_tag="$(
+    grep '"tag_name"' "$release_json" |
+      sed 's/.*"tag_name": "\([^"]*\)".*/\1/' |
+      head -n 1 || true
+  )"
+
+  if command -v ui_obtaining_latest_release >/dev/null 2>&1; then
+    ui_obtaining_latest_release "$release_tag"
+  elif [ -n "$release_tag" ]; then
+    say "Obtaining latest stable release: $release_tag"
+  else
+    say "Obtaining latest stable release"
   fi
 
   asset_url="$(

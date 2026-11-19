@@ -36,6 +36,30 @@ graft_cli_layout_download() {
   fi
 }
 
+graft_cli_layout_ensure_assets() {
+  root="$1"
+  base="$2"
+
+  if [ -z "$root" ] || [ -z "$base" ]; then
+    return 0
+  fi
+
+  mkdir -p "$root/assets"
+  logo_path="$root/assets/logo_ascii.txt"
+  need_logo=0
+  if [ ! -f "$logo_path" ]; then
+    need_logo=1
+  elif [ ! -s "$logo_path" ]; then
+    need_logo=1
+  fi
+
+  if [ "$need_logo" = "1" ]; then
+    graft_cli_layout_download "$base/assets/logo_ascii.txt" "$logo_path" "assets/logo_ascii.txt" 2>/dev/null || true
+  fi
+
+  return 0
+}
+
 graft_cli_layout_ensure_lib_files() {
   root="$1"
   base="$2"
@@ -74,6 +98,9 @@ graft_cli_layout_try_root() {
   fi
 
   graft_cli_layout_ensure_lib_files "$root" "$base" || return 1
+  graft_cli_layout_ensure_assets "$root" "$base" || return 1
+  CLI_RAW_BASE="$base"
+  export CLI_RAW_BASE
   GRAFT_CLI_DIR="$root"
   export GRAFT_CLI_DIR
   return 0
@@ -117,11 +144,9 @@ graft_cli_initialize_cli_layout() {
   mkdir -p "$home/lib" "$home/assets"
   graft_cli_layout_ensure_lib_files "$home" "$base" || return 1
 
-  logo_path="$home/assets/logo_ascii.txt"
-  if [ ! -f "$logo_path" ]; then
-    graft_cli_layout_download "$base/assets/logo_ascii.txt" "$logo_path" "assets/logo_ascii.txt" 2>/dev/null || true
-  fi
-
+  graft_cli_layout_ensure_assets "$home" "$base" || return 1
+  CLI_RAW_BASE="$base"
+  export CLI_RAW_BASE
   GRAFT_CLI_DIR="$home"
   export GRAFT_CLI_DIR
   return 0

@@ -1,7 +1,12 @@
 $ErrorActionPreference = 'Stop'
 
 if (-not $script:CliRawBase) {
-  $script:CliRawBase = 'https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli'
+  if ($script:GrftRawBase) {
+    $script:CliRawBase = $script:GrftRawBase
+  }
+  else {
+    $script:CliRawBase = 'https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli'
+  }
 }
 
 if (-not $script:CliDir) {
@@ -96,7 +101,14 @@ function Ui-SayPlatformLine {
 }
 
 function Ui-ObtainingLatestRelease {
-  Ui-Say 'Obtaining latest stable release'
+  param([string]$ReleaseTag)
+
+  if ([string]::IsNullOrWhiteSpace($ReleaseTag)) {
+    Ui-Say 'Obtaining latest stable release'
+  }
+  else {
+    Ui-Say "Obtaining latest stable release: $ReleaseTag"
+  }
 }
 
 function Write-UiBracketProgress {

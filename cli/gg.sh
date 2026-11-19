@@ -68,22 +68,26 @@ if [ -n "${GRAFT_CLI_DIR:-}" ] && [ -d "$GRAFT_CLI_DIR" ]; then
 else
   _bootstrap_dir="$(graft_cli_resolve_script_dir)"
 fi
-if [ -n "$_bootstrap_dir" ] && [ -f "$_bootstrap_dir/lib/grft-cli-layout-bootstrap.sh" ]; then
+
+if [ -n "$_bootstrap_dir" ] && [ -f "$_bootstrap_dir/lib/ui.sh" ]; then
+  GRAFT_CLI_DIR="$_bootstrap_dir"
+  export GRAFT_CLI_DIR
+  graft_cli_source_lib ui.sh
+  graft_cli_source_lib gateway-installer.sh
+elif [ -n "$_bootstrap_dir" ] && [ -f "$_bootstrap_dir/lib/grft-cli-layout-bootstrap.sh" ]; then
   graft_cli_source_sh_file "$_bootstrap_dir/lib/grft-cli-layout-bootstrap.sh"
   graft_cli_bootstrap_layout "$_bootstrap_dir" || exit 1
-elif command -v curl >/dev/null 2>&1; then
-  _ensure_tmp="$(mktemp)"
-  curl -fsSL "$CLI_RAW_BASE/ensure-sh-cli-layout.sh" -o "$_ensure_tmp"
-  graft_cli_source_sh_file "$_ensure_tmp"
-  rm -f "$_ensure_tmp"
-  graft_cli_load_and_initialize_layout || exit 1
+  graft_cli_source_lib ui.sh
+  graft_cli_source_lib gateway-installer.sh
 else
-  echo "Error: curl is required to bootstrap the CLI layout." >&2
-  exit 1
+  if ! command -v curl >/dev/null 2>&1; then
+    echo "Error: curl is required to run the gateway installer." >&2
+    exit 1
+  fi
+  export GRAFT_CLI_EPHEMERAL=1
+  graft_cli_source_lib_from_url ui.sh
+  graft_cli_source_lib_from_url gateway-installer.sh
 fi
-
-graft_cli_source_lib ui.sh
-graft_cli_source_lib gateway-installer.sh
 
 install_gg_to_cwd
 ui_show_done

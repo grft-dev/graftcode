@@ -8,13 +8,13 @@ $libPath = if ($PSScriptRoot) { Join-Path $PSScriptRoot '..\lib\grft-cli-raw.ps1
 if ($libPath -and (Test-Path -LiteralPath $libPath)) {
     . $libPath
 }
+elseif ($GrftCliRawBase) {
+    $content = (Invoke-WebRequest -Uri "$($GrftCliRawBase.TrimEnd('/'))/lib/grft-cli-raw.ps1" -UseBasicParsing).Content
+    if ($content -is [byte[]]) { $content = [System.Text.Encoding]::UTF8.GetString($content) }
+    . ([ScriptBlock]::Create([string]$content))
+}
 else {
-    if (-not $GrftCliRawBase) {
-        throw 'Set $GrftCliRawBase from get/plugin or plugin stub before pipe | iex.'
-    }
-    $tmp = Join-Path $env:TEMP 'grft-cli-raw.ps1'
-    Invoke-WebRequest -Uri "$($GrftCliRawBase.TrimEnd('/'))/lib/grft-cli-raw.ps1" -OutFile $tmp -UseBasicParsing
-    . $tmp
+    throw 'Set $GrftCliRawBase from get/plugin or plugin stub before pipe | iex.'
 }
 
 Initialize-GrftCliRawContext
@@ -35,6 +35,6 @@ if ($invokePath -and $runner -and $checkoutCfg -and (Test-Path -LiteralPath $run
     return
 }
 
-$runTmp = Join-Path $env:TEMP 'grft-plugin-deep-link.ps1'
-Invoke-WebRequest -Uri "$GrftCliRawBase/plugin/deep-link.ps1" -OutFile $runTmp -UseBasicParsing
-. $runTmp
+$deepContent = (Invoke-WebRequest -Uri "$GrftCliRawBase/plugin/deep-link.ps1" -UseBasicParsing).Content
+if ($deepContent -is [byte[]]) { $deepContent = [System.Text.Encoding]::UTF8.GetString($deepContent) }
+. ([ScriptBlock]::Create([string]$deepContent))

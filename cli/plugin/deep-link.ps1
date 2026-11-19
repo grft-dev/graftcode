@@ -5,43 +5,46 @@ if (-not $GrftDeepLinkPluginId) {
     throw 'Set $GrftDeepLinkPluginId before running plugin/deep-link.ps1 (per-plugin stub sets it).'
 }
 
+$PluginId = $GrftDeepLinkPluginId
+
 $libPath = if ($PSScriptRoot) { Join-Path $PSScriptRoot '..\lib\grft-cli-raw.ps1' } else { $null }
 if ($libPath -and (Test-Path -LiteralPath $libPath)) {
     . $libPath
 }
+elseif ($GrftCliRawBase) {
+    $rawContent = (Invoke-WebRequest -Uri "$($GrftCliRawBase.TrimEnd('/'))/lib/grft-cli-raw.ps1" -UseBasicParsing).Content
+    if ($rawContent -is [byte[]]) { $rawContent = [System.Text.Encoding]::UTF8.GetString($rawContent) }
+    . ([ScriptBlock]::Create([string]$rawContent))
+}
 else {
-    if (-not $GrftCliRawBase) {
-        throw 'Set $GrftCliRawBase from get/plugin or plugin stub before pipe | iex.'
-    }
-    $tmp = Join-Path $env:TEMP 'grft-cli-raw.ps1'
-    Invoke-WebRequest -Uri "$($GrftCliRawBase.TrimEnd('/'))/lib/grft-cli-raw.ps1" -OutFile $tmp -UseBasicParsing
-    . $tmp
+    throw 'Set $GrftCliRawBase from get/plugin or plugin stub before pipe | iex.'
 }
 
 Initialize-GrftCliRawContext
 
-$PluginId = $GrftDeepLinkPluginId
-$GrftHome = if ($env:GRFT_HOME) { $env:GRFT_HOME } else { Join-Path $env:USERPROFILE '.grft' }
+$checkoutRoot = if ($PSScriptRoot) { Split-Path -Parent $PSScriptRoot } else { $null }
+$useCheckout = $checkoutRoot -and (Test-GrftPowerShellCliCheckout -CliRoot $checkoutRoot)
 
-$EnsureLayoutPath = if ($PSScriptRoot) { Join-Path $PSScriptRoot '..\ensure-ps-cli-layout.ps1' } else { $null }
-if (-not $EnsureLayoutPath -and $MyInvocation.MyCommand.Path) {
-    $EnsureLayoutPath = Join-Path (Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)) 'ensure-ps-cli-layout.ps1'
-}
-if ($EnsureLayoutPath -and (Test-Path -LiteralPath $EnsureLayoutPath)) {
-    . $EnsureLayoutPath
+if ($useCheckout) {
+    $script:CliDir = $checkoutRoot
+    $script:CliRawBase = $script:GrftRawBase
+    $GraftCliDir = $checkoutRoot
+    . (Join-Path $checkoutRoot 'lib\ui.ps1')
+    . (Join-Path $checkoutRoot 'lib\gateway-installer.ps1')
+    . (Join-Path $checkoutRoot 'lib\plugin-manifest.ps1')
+    . (Join-Path $checkoutRoot 'lib\plugin-installer.ps1')
 }
 else {
-    $EnsureLayoutTmp = Join-Path $env:TEMP 'grft-ensure-ps-cli-layout.ps1'
-    Invoke-WebRequest -Uri "$GrftRawBase/ensure-ps-cli-layout.ps1" -OutFile $EnsureLayoutTmp -UseBasicParsing
-    . $EnsureLayoutTmp
+    $ensurePath = if ($checkoutRoot) { Join-Path $checkoutRoot 'ensure-ps-cli-layout.ps1' } else { $null }
+    if ($ensurePath -and (Test-Path -LiteralPath $ensurePath)) {
+        . $ensurePath
+    }
+    else {
+        Import-GrftPowerShellScriptFromRaw -GrftRawBase $script:GrftRawBase -RelativePath 'ensure-ps-cli-layout.ps1'
+    }
+    Initialize-GraftPowerShellCliEphemeral -GrftRawBase $script:GrftRawBase -IncludePluginStack
+    $GraftCliDir = $PWD.Path
 }
-
-$GraftCliDir = Initialize-GraftPowerShellCliLayout -GrftRawBase $GrftRawBase -GrftHome $GrftHome
-
-. (Join-Path (Join-Path $GraftCliDir 'lib') 'ui.ps1')
-. (Join-Path (Join-Path $GraftCliDir 'lib') 'gateway-installer.ps1')
-. (Join-Path (Join-Path $GraftCliDir 'lib') 'plugin-manifest.ps1')
-. (Join-Path (Join-Path $GraftCliDir 'lib') 'plugin-installer.ps1')
 
 $Label = Get-GraftPluginLabel -PluginId $PluginId
 Install-GraftcodePlugin -PluginName $PluginId -PluginLabel $Label

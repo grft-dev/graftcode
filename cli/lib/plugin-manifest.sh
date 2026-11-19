@@ -1,6 +1,11 @@
 # Plugin list from cli/plugins.manifest.json (dot-source from get.sh only).
 
 graft_plugin_manifest_path() {
+  if [ -n "${GRAFT_PLUGIN_MANIFEST_TMP:-}" ] && [ -f "$GRAFT_PLUGIN_MANIFEST_TMP" ]; then
+    printf '%s\n' "$GRAFT_PLUGIN_MANIFEST_TMP"
+    return 0
+  fi
+
   if [ -n "${GRAFT_CLI_DIR:-}" ] && [ -f "$GRAFT_CLI_DIR/plugins.manifest.json" ]; then
     printf '%s\n' "$GRAFT_CLI_DIR/plugins.manifest.json"
     return 0
@@ -31,6 +36,13 @@ graft_cli_ensure_plugin_manifest_file() {
   if ! has_cmd curl; then
     say "Error: plugins.manifest.json not found and curl is unavailable."
     exit 1
+  fi
+
+  if [ -n "${GRAFT_CLI_EPHEMERAL:-}" ]; then
+    GRAFT_PLUGIN_MANIFEST_TMP="$(mktemp)"
+    export GRAFT_PLUGIN_MANIFEST_TMP
+    curl -fsSL "$CLI_RAW_BASE/plugins.manifest.json" -o "$GRAFT_PLUGIN_MANIFEST_TMP"
+    return 0
   fi
 
   mkdir -p "${GRAFT_HOME:-$HOME/.grft}"

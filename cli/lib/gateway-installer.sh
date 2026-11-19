@@ -255,6 +255,25 @@ install_gg_to_cwd() {
       ;;
   esac
 
+  if [ -f "$output_path" ] && [ -s "$output_path" ]; then
+    if command -v ui_show_gateway_intro >/dev/null 2>&1; then
+      ui_show_gateway_intro
+    fi
+    if command -v ui_say_platform_line >/dev/null 2>&1; then
+      ui_say_platform_line "$os_name" "$arch_suffix"
+    else
+      gi_say "OS: $os_name | CPU: $arch_suffix"
+    fi
+    if command -v ui_show_installed_binary >/dev/null 2>&1; then
+      ui_show_installed_binary "$output_path"
+    else
+      gi_say ""
+      gi_say "Gateway already in current directory:"
+      gi_say "$output_path"
+    fi
+    return 0
+  fi
+
   if command -v ui_show_gateway_intro >/dev/null 2>&1; then
     ui_show_gateway_intro
   fi
@@ -263,16 +282,15 @@ install_gg_to_cwd() {
   else
     gi_say "OS: $os_name | CPU: $arch_suffix"
   fi
-  if command -v ui_obtaining_latest_release >/dev/null 2>&1; then
-    ui_obtaining_latest_release
-  else
-    gi_say "Fetching latest release from $GRAFT_GATEWAY_REPO..."
-  fi
-
   release_json="$(mktemp)"
   gi_download_file "https://api.github.com/repos/$GRAFT_GATEWAY_REPO/releases/latest" "$release_json" "latest release metadata" 0
 
   release_tag="$(gi_release_tag_from_json "$release_json")"
+  if command -v ui_obtaining_latest_release >/dev/null 2>&1; then
+    ui_obtaining_latest_release "$release_tag"
+  else
+    gi_say "Fetching latest stable release: ${release_tag} from $GRAFT_GATEWAY_REPO..."
+  fi
   cache_home="$(gi_cache_home)"
 
   if [ "$os_name" = "linux" ] && gi_has_cmd dpkg; then

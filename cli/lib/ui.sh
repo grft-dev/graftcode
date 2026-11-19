@@ -103,7 +103,12 @@ ui_say_platform_line() {
 }
 
 ui_obtaining_latest_release() {
-  ui_say "Obtaining latest stable release"
+  tag="${1:-}"
+  if [ -n "$tag" ]; then
+    ui_say "Obtaining latest stable release: $tag"
+  else
+    ui_say "Obtaining latest stable release"
+  fi
 }
 
 ui_write_bracket_progress() {
