@@ -15,6 +15,17 @@ function Initialize-GraftPowerShellCliLayout {
         if ([string]::IsNullOrWhiteSpace($root)) { continue }
         $ui = Join-Path $root 'lib\ui.ps1'
         if (Test-Path -LiteralPath $ui) {
+            $libDir = Join-Path $root 'lib'
+            foreach ($name in $libNames) {
+                $out = Join-Path $libDir $name
+                if (-not (Test-Path -LiteralPath $out)) {
+                    Invoke-WebRequest -Uri "$GrftRawBase/lib/$name" -OutFile $out -UseBasicParsing
+                }
+            }
+            $manifestPath = Join-Path $root 'plugins.manifest.json'
+            if (-not (Test-Path -LiteralPath $manifestPath)) {
+                Invoke-WebRequest -Uri "$GrftRawBase/plugins.manifest.json" -OutFile $manifestPath -UseBasicParsing
+            }
             $script:CliDir = $root
             return $root
         }
