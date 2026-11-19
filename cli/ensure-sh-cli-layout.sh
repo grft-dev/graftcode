@@ -1,7 +1,7 @@
 # Ensures a persistent Graftcode CLI layout under GRAFT_CLI_DIR / GRFT_HOME (mirrors ensure-ps-cli-layout.ps1).
 # Dot-source only; call graft_cli_initialize_cli_layout after setting CLI_RAW_BASE or GRFT_RAW_BASE.
 
-GRAFT_CLI_LAYOUT_LIB_NAMES="ui.sh gateway-installer.sh plugin-manifest.sh plugin-installer.sh"
+GRAFT_CLI_LAYOUT_LIB_NAMES="ui.sh gateway-installer.sh plugin-manifest.sh plugin-installer.sh rules-installer.sh"
 
 graft_cli_layout_has_cmd() {
   command -v "$1" >/dev/null 2>&1

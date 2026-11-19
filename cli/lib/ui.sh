@@ -229,6 +229,7 @@ ui_download_file() {
   show_progress="${4:-0}"
 
   if [ "$show_progress" = 1 ] && ui_wants_download_progress 1; then
+    ui_say "Downloading $label..."
     ui_download_with_bracket_progress "$url" "$output"
     return 0
   fi
@@ -274,6 +275,22 @@ ui_show_installed_deb() {
   else
     ui_say "  sudo dpkg -i $deb_path"
   fi
+}
+
+ui_obtaining_rules_for_ide() {
+  ide_label="${1:-IDE}"
+  ui_say "Installing Graftcode rules for $ide_label"
+}
+
+ui_show_rules_installed() {
+  ide_label="$1"
+  shift
+  ui_say ""
+  ui_say "Installed Graftcode $ide_label rules in:"
+  while [ $# -gt 0 ]; do
+    ui_say "$1"
+    shift
+  done
 }
 
 ui_show_plugin_installed() {

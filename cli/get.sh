@@ -16,14 +16,12 @@ elif [ -f "$(dirname "$0")/grft-raw-config.sh" ]; then
 fi
 GRFT_RAW_BASE="${GRFT_RAW_BASE:-${GRFT_CLI_RAW_BASE:-https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli}}"
 CLI_RAW_BASE="${CLI_RAW_BASE:-$GRFT_RAW_BASE}"
+export GRFT_CLI_RAW_BASE="${GRFT_CLI_RAW_BASE:-$GRFT_RAW_BASE}"
 GRFT_HOME="${GRFT_HOME:-$HOME/.grft}"
 
 REPO="grft-dev/graftcode-gateway"
 EXE_NAME="gg"
 OUTPUT_PATH="$PWD/$EXE_NAME"
-
-RULES_RAW_BASE="https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/rules"
-RULE_LANGS="dotnet java kotlin php python ruby typescript-node-nextjs"
 
 say() {
   echo "$@"
@@ -199,92 +197,41 @@ download_file() {
   say "Downloaded $label"
 }
 
-download_rule_set() {
-  remote_dir="$1"
-  local_dir="$2"
-  ext="$3"
-  include_router="$4"
-
-  mkdir -p "$local_dir"
-
-  set_list="$RULE_LANGS"
-  if [ "$include_router" = "yes" ]; then
-    set_list="router $RULE_LANGS"
+graft_cli_load_rules_install_stack() {
+  if command -v install_rules_for_ide >/dev/null 2>&1; then
+    return 0
   fi
 
-  for name in $set_list; do
-    fname="graftcode-$name.$ext"
-    download_file "$remote_dir/$fname" "$local_dir/$fname" "$fname"
-  done
-}
+  CLI_RAW_BASE="${CLI_RAW_BASE:-$GRFT_RAW_BASE}"
 
-install_rules_for_ide() {
-  ide="$(echo "$1" | tr 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' 'abcdefghijklmnopqrstuvwxyz')"
+  if ! graft_cli_ensure_ui_lib; then
+    say "Error: could not load ui.sh from $CLI_RAW_BASE"
+    exit 1
+  fi
 
-  case "$ide" in
-    cursor|1)
-      target_dir="$PWD/.cursor/rules"
-      download_rule_set "$RULES_RAW_BASE/Cursor/.cursor/rules" "$target_dir" "mdc" "yes"
-      say ""
-      say "Installed Graftcode Cursor rules in:"
-      say "$target_dir"
-      ;;
-    claude|claude-code|2)
-      download_file "$RULES_RAW_BASE/Claude/CLAUDE.md" "$PWD/CLAUDE.md" "CLAUDE.md"
-      target_dir="$PWD/.claude/rules"
-      download_rule_set "$RULES_RAW_BASE/Claude/.claude/rules" "$target_dir" "md" "no"
-      say ""
-      say "Installed Graftcode Claude Code rules in:"
-      say "$PWD/CLAUDE.md"
-      say "$target_dir"
-      ;;
-    copilot|github-copilot|github|3)
-      mkdir -p "$PWD/.github"
-      download_file "$RULES_RAW_BASE/Copilot/.github/copilot-instructions.md" "$PWD/.github/copilot-instructions.md" "copilot-instructions.md"
-      target_dir="$PWD/.github/instructions"
-      download_rule_set "$RULES_RAW_BASE/Copilot/.github/instructions" "$target_dir" "instructions.md" "no"
-      say ""
-      say "Installed Graftcode GitHub Copilot rules in:"
-      say "$PWD/.github/copilot-instructions.md"
-      say "$target_dir"
-      ;;
-    cline|4)
-      target_dir="$PWD/.clinerules"
-      download_rule_set "$RULES_RAW_BASE/Cline/.clinerules" "$target_dir" "md" "yes"
-      say ""
-      say "Installed Graftcode Cline rules in:"
-      say "$target_dir"
-      ;;
-    windsurf|5)
-      target_dir="$PWD/.windsurf/rules"
-      download_rule_set "$RULES_RAW_BASE/Windsurf/.windsurf/rules" "$target_dir" "md" "yes"
-      say ""
-      say "Installed Graftcode Windsurf rules in:"
-      say "$target_dir"
-      ;;
-    continue|6)
-      target_dir="$PWD/.continue/rules"
-      download_rule_set "$RULES_RAW_BASE/Continue/.continue/rules" "$target_dir" "md" "yes"
-      say ""
-      say "Installed Graftcode Continue rules in:"
-      say "$target_dir"
-      ;;
-    aider|7)
-      download_file "$RULES_RAW_BASE/Aider/CONVENTIONS.md" "$PWD/CONVENTIONS.md" "CONVENTIONS.md"
-      download_file "$RULES_RAW_BASE/Aider/.aider.conf.yml" "$PWD/.aider.conf.yml" ".aider.conf.yml"
-      say ""
-      say "Installed Graftcode Aider rules in:"
-      say "$PWD/CONVENTIONS.md"
-      say "$PWD/.aider.conf.yml"
-      ;;
-    *)
-      say "Unknown IDE '$1'. Use: cursor, claude, copilot, cline, windsurf, continue, aider"
-      exit 1
-      ;;
-  esac
+  if [ -n "${GRAFT_CLI_DIR:-}" ] && [ -f "$GRAFT_CLI_DIR/lib/rules-installer.sh" ]; then
+    graft_cli_source_sh_file "$GRAFT_CLI_DIR/lib/rules-installer.sh"
+    return 0
+  fi
+
+  if graft_cli_is_ephemeral_pipe_invocation && has_cmd curl; then
+    export GRAFT_CLI_EPHEMERAL=1
+    graft_cli_source_lib_from_url "lib/rules-installer.sh"
+    return 0
+  fi
+
+  if has_cmd curl; then
+    graft_cli_source_lib_from_url "lib/rules-installer.sh"
+    return 0
+  fi
+
+  say "Error: rules-installer.sh missing."
+  exit 1
 }
 
 install_rules() {
+  graft_cli_load_rules_install_stack
+
   if [ "$#" -ge 1 ] && [ -n "$1" ]; then
     install_rules_for_ide "$1"
     return 0

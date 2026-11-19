@@ -213,14 +213,13 @@ function Ui-DownloadFile {
   )
 
   $useBracket = $ShowProgress -and (Test-UiIsInteractive)
-  if (-not $useBracket) {
-    Ui-Say "Downloading $Label..."
-  }
-
   if ($useBracket) {
+    Ui-Say "Downloading $Label..."
     Invoke-UiHttpDownloadWithBracketProgress -Url $Url -OutputPath $OutputPath
     return
   }
+
+  Ui-Say "Downloading $Label..."
 
   $curl = Get-Command curl.exe -ErrorAction SilentlyContinue
   if ($curl) {
