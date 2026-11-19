@@ -39,6 +39,7 @@ else {
 $GraftCliDir = Initialize-GraftPowerShellCliLayout -GrftRawBase $GrftRawBase -GrftHome $GrftHome
 
 . (Join-Path (Join-Path $GraftCliDir 'lib') 'ui.ps1')
+. (Join-Path (Join-Path $GraftCliDir 'lib') 'gateway-installer.ps1')
 . (Join-Path (Join-Path $GraftCliDir 'lib') 'plugin-manifest.ps1')
 . (Join-Path (Join-Path $GraftCliDir 'lib') 'plugin-installer.ps1')
 
