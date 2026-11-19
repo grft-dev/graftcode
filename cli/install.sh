@@ -2,7 +2,8 @@
 # Installs the Graftcode CLI (grft) into ~/.grft — no admin/sudo required.
 set -eu
 
-GRFT_RAW_BASE="https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli"
+GRFT_RAW_BASE="${GRFT_RAW_BASE:-https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli}"
+CLI_RAW_BASE="${CLI_RAW_BASE:-$GRFT_RAW_BASE}"
 GRFT_HOME="${GRFT_HOME:-$HOME/.grft}"
 BIN_DIR="$GRFT_HOME/bin"
 
@@ -60,14 +61,29 @@ case "${0:-}" in
     ;;
 esac
 
+if [ -n "$SCRIPT_SOURCE_DIR" ] && [ -f "$SCRIPT_SOURCE_DIR/grft-raw-config.sh" ]; then
+  # shellcheck source=./grft-raw-config.sh
+  . "$SCRIPT_SOURCE_DIR/grft-raw-config.sh"
+fi
+GRFT_RAW_BASE="${GRFT_RAW_BASE:-${GRFT_CLI_RAW_BASE:-https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli}}"
+CLI_RAW_BASE="${CLI_RAW_BASE:-$GRFT_RAW_BASE}"
+
 say "Installing Graftcode CLI into $GRFT_HOME ..."
 
 mkdir -p "$GRFT_HOME" "$BIN_DIR"
 
 copy_or_download "VERSION" "$GRFT_HOME/VERSION" "VERSION"
 copy_or_download "get.sh" "$GRFT_HOME/get.sh" "get.sh"
+copy_or_download "ensure-sh-cli-layout.sh" "$GRFT_HOME/ensure-sh-cli-layout.sh" "ensure-sh-cli-layout.sh"
+copy_or_download "plugins.manifest.json" "$GRFT_HOME/plugins.manifest.json" "plugins.manifest.json"
 copy_or_download "bin/grft" "$BIN_DIR/grft" "grft"
-chmod +x "$GRFT_HOME/get.sh" "$BIN_DIR/grft"
+chmod +x "$GRFT_HOME/get.sh" "$GRFT_HOME/ensure-sh-cli-layout.sh" "$BIN_DIR/grft"
+
+mkdir -p "$GRFT_HOME/lib" "$GRFT_HOME/assets"
+for lib_name in ui.sh gateway-installer.sh plugin-manifest.sh plugin-installer.sh; do
+  copy_or_download "lib/$lib_name" "$GRFT_HOME/lib/$lib_name" "lib/$lib_name"
+done
+copy_or_download "assets/logo_ascii.txt" "$GRFT_HOME/assets/logo_ascii.txt" "assets/logo_ascii.txt"
 
 VERSION="$(tr -d '[:space:]' < "$GRFT_HOME/VERSION")"
 

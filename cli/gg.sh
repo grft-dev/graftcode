@@ -1,7 +1,12 @@
 #!/bin/sh
 set -eu
 
-CLI_RAW_BASE="${CLI_RAW_BASE:-https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli}"
+if [ -f "$(dirname "$0")/grft-raw-config.sh" ]; then
+  # shellcheck source=./grft-raw-config.sh
+  . "$(dirname "$0")/grft-raw-config.sh"
+fi
+CLI_RAW_BASE="${CLI_RAW_BASE:-${GRFT_CLI_RAW_BASE:-https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli}}"
+GRFT_RAW_BASE="${GRFT_RAW_BASE:-$CLI_RAW_BASE}"
 
 graft_cli_source_sh_file() {
   sh_path="$1"
@@ -54,6 +59,23 @@ graft_cli_source_lib() {
 
   graft_cli_source_lib_from_url "$lib_rel"
 }
+
+_bootstrap_dir="$(graft_cli_resolve_script_dir)"
+if [ -n "$_bootstrap_dir" ] && [ -f "$_bootstrap_dir/lib/grft-cli-layout-bootstrap.sh" ]; then
+  # shellcheck source=./lib/grft-cli-layout-bootstrap.sh
+  . "$_bootstrap_dir/lib/grft-cli-layout-bootstrap.sh"
+  graft_cli_bootstrap_layout || exit 1
+elif command -v curl >/dev/null 2>&1; then
+  _ensure_tmp="$(mktemp)"
+  curl -fsSL "$CLI_RAW_BASE/ensure-sh-cli-layout.sh" -o "$_ensure_tmp"
+  # shellcheck source=/dev/null
+  . "$_ensure_tmp"
+  rm -f "$_ensure_tmp"
+  graft_cli_load_and_initialize_layout || exit 1
+else
+  echo "Error: curl is required to bootstrap the CLI layout." >&2
+  exit 1
+fi
 
 graft_cli_source_lib ui.sh
 graft_cli_source_lib gateway-installer.sh

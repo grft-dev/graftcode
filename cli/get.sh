@@ -3,7 +3,12 @@
 set -eu
 
 GRFT_VERSION="0.1.2"
-GRFT_RAW_BASE="https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli"
+if [ -f "$(dirname "$0")/grft-raw-config.sh" ]; then
+  # shellcheck source=./grft-raw-config.sh
+  . "$(dirname "$0")/grft-raw-config.sh"
+fi
+GRFT_RAW_BASE="${GRFT_RAW_BASE:-${GRFT_CLI_RAW_BASE:-https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli}}"
+CLI_RAW_BASE="${CLI_RAW_BASE:-$GRFT_RAW_BASE}"
 GRFT_HOME="${GRFT_HOME:-$HOME/.grft}"
 
 REPO="grft-dev/graftcode-gateway"
@@ -264,22 +269,27 @@ graft_cli_ensure_gateway_installer_libs() {
   CLI_RAW_BASE="${CLI_RAW_BASE:-$GRFT_RAW_BASE}"
   script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 
-  if [ -f "$script_dir/lib/ui.sh" ]; then
-    graft_cli_source_sh_file "$script_dir/lib/ui.sh"
-    graft_cli_source_sh_file "$script_dir/lib/gateway-installer.sh"
-  elif [ -n "${GRAFT_CLI_DIR:-}" ] && [ -f "$GRAFT_CLI_DIR/lib/ui.sh" ]; then
-    graft_cli_source_sh_file "$GRAFT_CLI_DIR/lib/ui.sh"
-    graft_cli_source_sh_file "$GRAFT_CLI_DIR/lib/gateway-installer.sh"
+  if [ -f "$script_dir/lib/grft-cli-layout-bootstrap.sh" ]; then
+  # shellcheck source=./lib/grft-cli-layout-bootstrap.sh
+    . "$script_dir/lib/grft-cli-layout-bootstrap.sh"
+    graft_cli_bootstrap_layout || exit 1
   elif has_cmd curl; then
-    ui_tmp="$(mktemp)"
-    gi_tmp="$(mktemp)"
-    curl -fsSL "$CLI_RAW_BASE/lib/ui.sh" -o "$ui_tmp"
-    curl -fsSL "$CLI_RAW_BASE/lib/gateway-installer.sh" -o "$gi_tmp"
-    graft_cli_source_sh_file "$ui_tmp"
-    graft_cli_source_sh_file "$gi_tmp"
-    rm -f "$ui_tmp" "$gi_tmp"
+    ensure_tmp="$(mktemp)"
+    curl -fsSL "$CLI_RAW_BASE/ensure-sh-cli-layout.sh" -o "$ensure_tmp"
+    # shellcheck source=/dev/null
+    . "$ensure_tmp"
+    rm -f "$ensure_tmp"
+    graft_cli_load_and_initialize_layout || exit 1
   else
     say "Error: curl is required to load gateway installer libraries."
+    exit 1
+  fi
+
+  if [ -n "${GRAFT_CLI_DIR:-}" ] && [ -f "$GRAFT_CLI_DIR/lib/ui.sh" ]; then
+    graft_cli_source_sh_file "$GRAFT_CLI_DIR/lib/ui.sh"
+    graft_cli_source_sh_file "$GRAFT_CLI_DIR/lib/gateway-installer.sh"
+  else
+    say "Error: CLI layout not initialized."
     exit 1
   fi
 
@@ -292,12 +302,13 @@ install_gateway() {
 }
 
 install_plugins() {
-  if [ -n "${GRAFT_CLI_DIR:-}" ] && [ -f "$GRAFT_CLI_DIR/lib/plugin-manifest.sh" ]; then
-    graft_cli_source_sh_file "$GRAFT_CLI_DIR/lib/plugin-manifest.sh"
-  else
-    _plug_lib_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
-    graft_cli_source_sh_file "$_plug_lib_dir/lib/plugin-manifest.sh"
+  graft_cli_ensure_gateway_installer_libs
+
+  if [ -z "${GRAFT_CLI_DIR:-}" ] || [ ! -f "$GRAFT_CLI_DIR/lib/plugin-manifest.sh" ]; then
+    say "Error: plugin-manifest.sh missing after layout ensure."
+    exit 1
   fi
+  graft_cli_source_sh_file "$GRAFT_CLI_DIR/lib/plugin-manifest.sh"
 
   graft_cli_ensure_plugin_manifest_file
 
@@ -307,13 +318,11 @@ install_plugins() {
     exit 1
   fi
 
-  graft_cli_ensure_gateway_installer_libs
-  if [ -n "${GRAFT_CLI_DIR:-}" ] && [ -f "$GRAFT_CLI_DIR/lib/plugin-installer.sh" ]; then
-    graft_cli_source_sh_file "$GRAFT_CLI_DIR/lib/plugin-installer.sh"
-  else
-    _plug_lib_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
-    graft_cli_source_sh_file "$_plug_lib_dir/lib/plugin-installer.sh"
+  if [ ! -f "$GRAFT_CLI_DIR/lib/plugin-installer.sh" ]; then
+    say "Error: plugin-installer.sh missing after layout ensure."
+    exit 1
   fi
+  graft_cli_source_sh_file "$GRAFT_CLI_DIR/lib/plugin-installer.sh"
 
   plugin=""
   if [ "$#" -ge 1 ]; then

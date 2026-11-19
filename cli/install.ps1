@@ -56,7 +56,7 @@ if ($SourceLib -and (Test-Path $SourceLib)) {
     Write-Host 'Installed lib/*.ps1 from local checkout' -ForegroundColor DarkGray
 }
 else {
-    foreach ($libName in @('ui.ps1', 'gateway-installer.ps1', 'plugin-manifest.ps1')) {
+    foreach ($libName in @('ui.ps1', 'gateway-installer.ps1', 'plugin-manifest.ps1', 'plugin-installer.ps1')) {
         Save-GrftFile -RelativePath "lib/$libName" -OutputPath (Join-Path $DestLib $libName) -Label "lib/$libName"
     }
 }
