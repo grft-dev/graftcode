@@ -88,6 +88,63 @@ function Get-GraftcodeGatewayCacheFilePath {
   return Join-Path (Join-Path $CacheHome $ReleaseTag) ($RelativePath -replace '/', [IO.Path]::DirectorySeparatorChar)
 }
 
+function Resolve-GraftGatewayReleaseTagForBinary {
+  param(
+    [string]$BinaryPath,
+    [string]$CacheHome,
+    [string]$RelativePath
+  )
+
+  if (-not (Test-Path -LiteralPath $BinaryPath)) {
+    return $null
+  }
+
+  try {
+    $info = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($BinaryPath)
+    $version = $info.ProductVersion
+    if ([string]::IsNullOrWhiteSpace($version)) {
+      $version = $info.FileVersion
+    }
+    if (-not [string]::IsNullOrWhiteSpace($version)) {
+      $trimmed = $version.Trim().Split(' ', '+', [StringSplitOptions]::RemoveEmptyEntries)[0]
+      if ($trimmed -match '^v') {
+        return $trimmed
+      }
+      if ($trimmed -match '^\d') {
+        return "v$trimmed"
+      }
+    }
+  }
+  catch {
+  }
+
+  if ([string]::IsNullOrWhiteSpace($CacheHome) -or -not (Test-Path -LiteralPath $CacheHome)) {
+    return $null
+  }
+
+  $binaryHash = (Get-FileHash -LiteralPath $BinaryPath -Algorithm SHA256).Hash
+
+  $latestTagPath = Join-Path $CacheHome 'latest-tag.txt'
+  if (Test-Path -LiteralPath $latestTagPath) {
+    $tag = (Get-Content -LiteralPath $latestTagPath -Raw).Trim()
+    if ($tag) {
+      $cached = Get-GraftcodeGatewayCacheFilePath -CacheHome $CacheHome -ReleaseTag $tag -RelativePath $RelativePath
+      if ((Test-Path -LiteralPath $cached) -and (Get-FileHash -LiteralPath $cached -Algorithm SHA256).Hash -eq $binaryHash) {
+        return $tag
+      }
+    }
+  }
+
+  foreach ($dir in Get-ChildItem -LiteralPath $CacheHome -Directory -ErrorAction SilentlyContinue) {
+    $candidate = Join-Path $dir.FullName ($RelativePath -replace '/', [IO.Path]::DirectorySeparatorChar)
+    if ((Test-Path -LiteralPath $candidate) -and (Get-FileHash -LiteralPath $candidate -Algorithm SHA256).Hash -eq $binaryHash) {
+      return $dir.Name
+    }
+  }
+
+  return $null
+}
+
 function Try-InstallGraftcodeGatewayFromCache {
   param(
     [string]$CacheHome,
@@ -153,11 +210,21 @@ function Install-GraftcodeGatewayToCwd {
   $ArchSuffix = Get-NativeWindowsArchSuffix
   $AssetName = "gg_windows_${ArchSuffix}.zip"
 
+  $CacheHome = Get-GraftcodeGatewayCacheHome
+  $CacheRel = "windows-${ArchSuffix}/gg.exe"
+
   $Existing = Get-Item -LiteralPath $OutputPath -ErrorAction SilentlyContinue
   if ($Existing -and -not $Existing.PSIsContainer -and $Existing.Length -gt 0) {
     Show-UiGatewayIntro
     Ui-SayPlatformLine -Os 'windows' -Cpu $ArchSuffix
-    Show-UiGatewayInstalled -OutputPath $OutputPath
+    $KnownTag = Resolve-GraftGatewayReleaseTagForBinary -BinaryPath $OutputPath -CacheHome $CacheHome -RelativePath $CacheRel
+    if ($KnownTag) {
+      Ui-Say "Using existing Gateway in current directory ($KnownTag)."
+    }
+    else {
+      Ui-Say 'Using existing Gateway in current directory.'
+    }
+    Show-UiGatewayInstalled -OutputPath $OutputPath -ReleaseTag $KnownTag
     return
   }
 
@@ -167,11 +234,9 @@ function Install-GraftcodeGatewayToCwd {
   $Release = Invoke-RestMethod "https://api.github.com/repos/$Repo/releases/latest"
   $ReleaseTag = $Release.tag_name
   Ui-ObtainingLatestRelease -ReleaseTag $ReleaseTag
-  $CacheHome = Get-GraftcodeGatewayCacheHome
-  $CacheRel = "windows-${ArchSuffix}/gg.exe"
 
   if (Try-InstallGraftcodeGatewayFromCache -CacheHome $CacheHome -ReleaseTag $ReleaseTag -RelativePath $CacheRel -DestPath $OutputPath) {
-    Show-UiGatewayInstalled -OutputPath $OutputPath
+    Show-UiGatewayInstalled -OutputPath $OutputPath -ReleaseTag $ReleaseTag
     return
   }
 
@@ -217,7 +282,7 @@ function Install-GraftcodeGatewayToCwd {
     }
 
     Save-GraftcodeGatewayToCache -CacheHome $CacheHome -ReleaseTag $ReleaseTag -RelativePath $CacheRel -SourcePath $OutputPath
-    Show-UiGatewayInstalled -OutputPath $OutputPath
+    Show-UiGatewayInstalled -OutputPath $OutputPath -ReleaseTag $ReleaseTag
   }
   finally {
     if (Test-Path $TempDir) {

@@ -111,6 +111,16 @@ ui_obtaining_latest_release() {
   fi
 }
 
+ui_obtaining_latest_plugin_release() {
+  label="${1:-plugin}"
+  tag="${2:-}"
+  if [ -n "$tag" ]; then
+    ui_say "Obtaining latest ${label} plugin release: $tag"
+  else
+    ui_say "Obtaining latest ${label} plugin release"
+  fi
+}
+
 ui_write_bracket_progress() {
   pct="$1"
   width="$UI_PROGRESS_WIDTH"
@@ -199,8 +209,12 @@ ui_download_file() {
 
 ui_show_installed_binary() {
   output_path="$1"
+  release_tag="${2:-}"
   ui_say ""
   ui_say "Installed Graftcode Gateway:"
+  if [ -n "$release_tag" ]; then
+    ui_say "Version: $release_tag"
+  fi
   ui_say "$output_path"
   ui_say ""
   ui_say "Run: ./gg <your module>"

@@ -55,6 +55,7 @@ function Show-GraftcodeIntro {
     }
 
     Write-UiBrandLogo (Get-UiGatewayLogoText)
+    Write-Host ''
 
     Write-Host "Graftcode helps you generate AI code that integrates through Graftcode." -ForegroundColor White
     Write-Host "It can reduce boilerplate, simplify PRs, and save up to 80% of tokens." -ForegroundColor White

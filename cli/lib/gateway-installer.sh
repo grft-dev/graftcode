@@ -114,6 +114,37 @@ gi_cache_rel_binary() {
   esac
 }
 
+gi_resolve_gateway_release_tag_for_binary() {
+  binary_path="$1"
+  cache_home="$2"
+  rel_path="$3"
+
+  if [ ! -f "$binary_path" ] || [ -z "$cache_home" ] || [ ! -d "$cache_home" ]; then
+    return 1
+  fi
+
+  if [ -f "${cache_home%/}/latest-tag.txt" ]; then
+    tag="$(tr -d '\r\n' < "${cache_home%/}/latest-tag.txt")"
+    cache_file="${cache_home%/}/${tag}/${rel_path}"
+    if [ -f "$cache_file" ] && cmp -s "$cache_file" "$binary_path"; then
+      printf '%s\n' "$tag"
+      return 0
+    fi
+  fi
+
+  for tag_dir in "${cache_home%/}"/*; do
+    [ -d "$tag_dir" ] || continue
+    tag="$(basename "$tag_dir")"
+    cache_file="${tag_dir}/${rel_path}"
+    if [ -f "$cache_file" ] && cmp -s "$cache_file" "$binary_path"; then
+      printf '%s\n' "$tag"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
 gi_try_copy_from_cache() {
   cache_home="$1"
   release_tag="$2"
@@ -255,6 +286,9 @@ install_gg_to_cwd() {
       ;;
   esac
 
+  cache_home="$(gi_cache_home)"
+  bin_rel="$(gi_cache_rel_binary "$os_name" "$arch_suffix")"
+
   if [ -f "$output_path" ] && [ -s "$output_path" ]; then
     if command -v ui_show_gateway_intro >/dev/null 2>&1; then
       ui_show_gateway_intro
@@ -264,8 +298,14 @@ install_gg_to_cwd() {
     else
       gi_say "OS: $os_name | CPU: $arch_suffix"
     fi
+    known_tag="$(gi_resolve_gateway_release_tag_for_binary "$output_path" "$cache_home" "$bin_rel" || true)"
+    if [ -n "$known_tag" ]; then
+      gi_say "Using existing Gateway in current directory ($known_tag)."
+    else
+      gi_say "Using existing Gateway in current directory."
+    fi
     if command -v ui_show_installed_binary >/dev/null 2>&1; then
-      ui_show_installed_binary "$output_path"
+      ui_show_installed_binary "$output_path" "$known_tag"
     else
       gi_say ""
       gi_say "Gateway already in current directory:"
@@ -314,7 +354,7 @@ install_gg_to_cwd() {
   bin_rel="$(gi_cache_rel_binary "$os_name" "$arch_suffix")"
   if gi_try_copy_from_cache "$cache_home" "$release_tag" "$bin_rel" "$output_path"; then
     if command -v ui_show_installed_binary >/dev/null 2>&1; then
-      ui_show_installed_binary "$output_path"
+      ui_show_installed_binary "$output_path" "$release_tag"
     fi
     rm -f "$release_json"
     return 0
@@ -353,7 +393,7 @@ install_gg_to_cwd() {
   rm -f "$release_json"
 
   if command -v ui_show_installed_binary >/dev/null 2>&1; then
-    ui_show_installed_binary "$output_path"
+    ui_show_installed_binary "$output_path" "$release_tag"
   else
     gi_say ""
     gi_say "Installed Graftcode Gateway:"

@@ -115,12 +115,12 @@ install_plugin() {
       head -n 1 || true
   )"
 
-  if command -v ui_obtaining_latest_release >/dev/null 2>&1; then
-    ui_obtaining_latest_release "$release_tag"
+  if command -v ui_obtaining_latest_plugin_release >/dev/null 2>&1; then
+    ui_obtaining_latest_plugin_release "$plugin_label" "$release_tag"
   elif [ -n "$release_tag" ]; then
-    say "Obtaining latest stable release: $release_tag"
+    say "Obtaining latest ${plugin_label} plugin release: $release_tag"
   else
-    say "Obtaining latest stable release"
+    say "Obtaining latest ${plugin_label} plugin release"
   fi
 
   asset_url="$(

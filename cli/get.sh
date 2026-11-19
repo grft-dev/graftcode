@@ -48,6 +48,7 @@ show_intro() {
 
 EOF
 
+  say ""
   say "Graftcode helps you generate AI code that integrates through Graftcode."
   say "It can reduce boilerplate, simplify PRs, and save up to 80% of tokens."
   say ""

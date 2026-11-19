@@ -113,6 +113,22 @@ function Ui-ObtainingLatestRelease {
   }
 }
 
+function Ui-ObtainingLatestPluginRelease {
+  param(
+    [string]$PluginLabel,
+    [string]$ReleaseTag
+  )
+
+  $name = if ([string]::IsNullOrWhiteSpace($PluginLabel)) { 'plugin' } else { $PluginLabel }
+
+  if ([string]::IsNullOrWhiteSpace($ReleaseTag)) {
+    Ui-Say "Obtaining latest $name plugin release"
+  }
+  else {
+    Ui-Say "Obtaining latest $name plugin release: $ReleaseTag"
+  }
+}
+
 function Write-UiBracketProgress {
   param([int]$Percent)
 
@@ -237,10 +253,16 @@ function Ui-DownloadFile {
 }
 
 function Show-UiGatewayInstalled {
-  param([string]$OutputPath)
+  param(
+    [string]$OutputPath,
+    [string]$ReleaseTag
+  )
 
   Write-Host ''
   Write-Host 'Installed Graftcode Gateway:' -ForegroundColor Green
+  if (-not [string]::IsNullOrWhiteSpace($ReleaseTag)) {
+    Write-Host "Version: $ReleaseTag" -ForegroundColor DarkGray
+  }
   Write-Host $OutputPath
   Write-Host ''
   Write-Host 'Run: gg.exe <your module>' -ForegroundColor White

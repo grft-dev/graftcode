@@ -55,7 +55,7 @@ function Install-GraftcodePlugin {
     Ui-SayPlatformLine -Os $OsName -Cpu $CpuDisplay
 
     $Release = Invoke-RestMethod "https://api.github.com/repos/$Repo/releases/latest"
-    Ui-ObtainingLatestRelease -ReleaseTag $Release.tag_name
+    Ui-ObtainingLatestPluginRelease -PluginLabel $PluginLabel -ReleaseTag $Release.tag_name
 
     $Asset = $Release.assets |
         Where-Object { $_.name -ieq $AssetName } |
