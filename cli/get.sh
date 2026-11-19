@@ -30,7 +30,13 @@ say_no_newline() {
 }
 
 grft_is_interactive_tty() {
-  [ -t 0 ] && [ -t 1 ]
+  if [ -t 0 ] && [ -t 1 ]; then
+    return 0
+  fi
+  if [ -t 1 ] && [ -r /dev/tty ]; then
+    return 0
+  fi
+  return 1
 }
 
 show_intro() {
