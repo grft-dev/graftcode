@@ -29,7 +29,7 @@ gi_download_file() {
     ui_download_file "$url" "$output" "$label" "$show_progress"
   else
     gi_say "Downloading $label..."
-    curl -fSL "$url" -o "$output"
+    curl -fSL "$url" -o "$output" </dev/null
     gi_say "Downloaded $label"
   fi
 }

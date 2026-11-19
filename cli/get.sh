@@ -1,5 +1,9 @@
 #!/bin/sh
 # GRFT_VERSION=0.1.2
+if ! [ -t 0 ]; then
+  GRFT_PIPE_INVOCATION=1
+  export GRFT_PIPE_INVOCATION
+fi
 set -eu
 
 GRFT_VERSION="0.1.2"
@@ -62,7 +66,7 @@ graft_cli_ensure_ui_lib() {
     return 1
   fi
   ui_tmp="$(mktemp)"
-  curl -fsSL "$CLI_RAW_BASE/lib/ui.sh" -o "$ui_tmp" || {
+  curl -fsSL "$CLI_RAW_BASE/lib/ui.sh" -o "$ui_tmp" </dev/null || {
     rm -f "$ui_tmp"
     return 1
   }
@@ -78,7 +82,7 @@ grft_plugin_ids_from_raw_manifest() {
   if ! command -v curl >/dev/null 2>&1; then
     return 1
   fi
-  curl -fsSL "$GRFT_RAW_BASE/plugins.manifest.json" 2>/dev/null |
+  curl -fsSL "$GRFT_RAW_BASE/plugins.manifest.json" </dev/null 2>/dev/null |
     sed -n 's/.*"id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' |
     tr '\n' ',' |
     sed 's/,$//'
@@ -144,7 +148,9 @@ read_from_tty() {
 
   if grft_dev_tty_usable; then
     printf '%s' "$prompt" >/dev/tty
-    IFS= read -r choice </dev/tty || choice=""
+    exec 3</dev/tty
+    IFS= read -r choice <&3 || choice=""
+    exec 3<&-
   else
     printf '%s' "$prompt"
     IFS= read -r choice || choice=""
@@ -180,7 +186,7 @@ download_file() {
   say "Downloading $label..."
 
   if has_cmd curl; then
-    curl -fL "$url" -o "$output"
+    curl -fL "$url" -o "$output" </dev/null
   elif has_cmd wget; then
     wget -O "$output" "$url"
   elif has_cmd busybox; then
@@ -315,6 +321,9 @@ graft_cli_source_sh_file() {
 }
 
 graft_cli_is_ephemeral_pipe_invocation() {
+  if [ "${GRFT_PIPE_INVOCATION:-}" = "1" ]; then
+    return 0
+  fi
   case "${0:-}" in
     '' | - | sh | bash) return 0 ;;
     *) return 1 ;;
@@ -329,7 +338,7 @@ graft_cli_source_lib_from_url() {
     exit 1
   fi
   lib_tmp="$(mktemp)"
-  curl -fsSL "$CLI_RAW_BASE/$lib_rel" -o "$lib_tmp" || {
+  curl -fsSL "$CLI_RAW_BASE/$lib_rel" -o "$lib_tmp" </dev/null || {
     rm -f "$lib_tmp"
     say "Error: failed to load $lib_rel from $CLI_RAW_BASE."
     exit 1
@@ -358,7 +367,9 @@ graft_cli_ensure_gateway_installer_libs() {
   fi
 
   if graft_cli_is_ephemeral_pipe_invocation && has_cmd curl; then
-    graft_cli_source_lib_from_url "lib/ui.sh"
+    if ! command -v ui_show_gateway_intro >/dev/null 2>&1; then
+      graft_cli_source_lib_from_url "lib/ui.sh"
+    fi
     graft_cli_source_lib_from_url "lib/gateway-installer.sh"
     GRAFT_GATEWAY_INSTALLER_LOADED=1
     return 0
@@ -376,7 +387,7 @@ graft_cli_ensure_gateway_installer_libs() {
     graft_cli_bootstrap_layout "$script_dir" || exit 1
   elif has_cmd curl; then
     ensure_tmp="$(mktemp)"
-    curl -fsSL "$CLI_RAW_BASE/ensure-sh-cli-layout.sh" -o "$ensure_tmp"
+    curl -fsSL "$CLI_RAW_BASE/ensure-sh-cli-layout.sh" -o "$ensure_tmp" </dev/null
     # shellcheck source=/dev/null
     . "$ensure_tmp"
     rm -f "$ensure_tmp"
@@ -398,6 +409,7 @@ graft_cli_ensure_gateway_installer_libs() {
 }
 
 install_gateway() {
+  say "Preparing Graftcode Gateway download..."
   graft_cli_ensure_gateway_installer_libs
   install_gg_to_cwd
 }

@@ -76,7 +76,7 @@ ui_load_logo_text() {
   fi
 
   if ui_has_cmd curl; then
-    curl -fsSL "$CLI_RAW_BASE/assets/logo_ascii.txt"
+    curl -fsSL "$CLI_RAW_BASE/assets/logo_ascii.txt" </dev/null
     return 0
   fi
 
@@ -126,10 +126,10 @@ ui_resolve_content_length() {
   url="$1"
   total=0
   if ui_has_cmd curl; then
-    total="$(curl -fsSIL -L -A 'grft-cli' "$url" 2>/dev/null |
+    total="$(curl -fsSIL -L -A 'grft-cli' "$url" </dev/null 2>/dev/null |
       awk 'tolower($0) ~ /^content-length:/ { cl=$2 } END { gsub(/\r/, "", cl); if (cl + 0 > 0) print cl + 0 }')"
     if [ -z "$total" ] || [ "$total" -eq 0 ] 2>/dev/null; then
-      total="$(curl -fsSI -L -A 'grft-cli' -H 'Range: bytes=0-0' "$url" 2>/dev/null |
+      total="$(curl -fsSI -L -A 'grft-cli' -H 'Range: bytes=0-0' "$url" </dev/null 2>/dev/null |
         awk 'tolower($0) ~ /^content-range:/ {
           n = split($0, parts, "/")
           if (n >= 2) { gsub(/\r/, "", parts[2]); print parts[2] + 0 }
@@ -196,7 +196,7 @@ ui_download_with_bracket_progress() {
   fi
   : >"$output"
 
-  curl -fsSL "$url" -o "$output" &
+  curl -fsSL "$url" -o "$output" </dev/null &
   curl_pid=$!
 
   while kill -0 "$curl_pid" 2>/dev/null; do
@@ -236,7 +236,7 @@ ui_download_file() {
   ui_say "Downloading $label..."
 
   if ui_has_cmd curl; then
-    curl -fsSL "$url" -o "$output"
+    curl -fsSL "$url" -o "$output" </dev/null
   elif ui_has_cmd wget; then
     wget -q -O "$output" "$url"
   elif ui_has_cmd busybox; then
