@@ -9,15 +9,15 @@ if (-not $script:CliRawBase) {
   }
 }
 
-if (-not $script:CliDir) {
+if (-not $script:CliDir -and -not $script:GrftCliEphemeral) {
   $uiRoot = $PSScriptRoot
   if (-not $uiRoot) {
     $uiRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
   }
-  if ((Split-Path -Leaf $uiRoot) -eq 'lib') {
+  if ($uiRoot -and (Split-Path -Leaf $uiRoot) -eq 'lib') {
     $script:CliDir = Split-Path -Parent $uiRoot
   }
-  else {
+  elseif ($uiRoot) {
     $script:CliDir = $uiRoot
   }
 }
@@ -72,9 +72,11 @@ function Write-UiBrandLogo {
 }
 
 function Get-UiGatewayLogoText {
-  $logoPath = Join-Path (Join-Path $script:CliDir 'assets') 'logo_ascii.txt'
-  if (Test-Path $logoPath) {
-    return (Get-Content -Path $logoPath -Raw)
+  if (-not [string]::IsNullOrWhiteSpace($script:CliDir)) {
+    $logoPath = Join-Path (Join-Path $script:CliDir 'assets') 'logo_ascii.txt'
+    if (Test-Path $logoPath) {
+      return (Get-Content -Path $logoPath -Raw)
+    }
   }
 
   try {

@@ -1,19 +1,35 @@
+function Convert-GrftIwrContentToString {
+    param($Content)
+
+    if ($Content -is [byte[]]) {
+        return [System.Text.Encoding]::UTF8.GetString($Content)
+    }
+
+    return [string]$Content
+}
+
 function Import-GrftCliRawConfig {
     if ($script:GrftCliRawBase -and $script:GrftRulesRawBase) {
         return
     }
+    if ($GrftCliRawBase) {
+        $script:GrftCliRawBase = $GrftCliRawBase.TrimEnd('/')
+        $script:GrftRulesRawBase = ($script:GrftCliRawBase -replace '/cli$', '/rules')
+        return
+    }
     if ($PSScriptRoot) {
         $cliRoot = Split-Path -Parent $PSScriptRoot
+        if ((Split-Path -Leaf $PSScriptRoot) -eq 'lib') {
+            $cliRoot = Split-Path -Parent $PSScriptRoot
+        }
+        elseif ((Split-Path -Leaf $PSScriptRoot) -eq 'cli') {
+            $cliRoot = $PSScriptRoot
+        }
         $cfg = Join-Path $cliRoot 'grft-raw-config.ps1'
         if (Test-Path -LiteralPath $cfg) {
             . $cfg
             return
         }
-    }
-    if ($GrftCliRawBase) {
-        $cfg = (Invoke-WebRequest -Uri "$($GrftCliRawBase.TrimEnd('/'))/grft-raw-config.ps1" -UseBasicParsing).Content
-        Invoke-Expression $cfg
-        return
     }
     if ($script:GrftCliRawBase) {
         return
@@ -74,13 +90,7 @@ function Import-GrftPowerShellScriptFromRaw {
     }
 
     $url = "$($GrftRawBase.TrimEnd('/'))/$($RelativePath.TrimStart('/').Replace('\', '/'))"
-    $body = (Invoke-WebRequest -Uri $url -UseBasicParsing).Content
-    if ($body -is [byte[]]) {
-        $body = [System.Text.Encoding]::UTF8.GetString($body)
-    }
-    else {
-        $body = [string]$body
-    }
+    $body = Convert-GrftIwrContentToString (Invoke-WebRequest -Uri $url -UseBasicParsing).Content
     . ([ScriptBlock]::Create($body))
 }
 

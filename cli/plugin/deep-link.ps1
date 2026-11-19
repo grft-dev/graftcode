@@ -6,15 +6,16 @@ if (-not $GrftDeepLinkPluginId) {
 }
 
 $PluginId = $GrftDeepLinkPluginId
-
+$pipeRawBase = if ($GrftCliRawBase) { $GrftCliRawBase.TrimEnd('/') } else { $null }
 $libPath = if ($PSScriptRoot) { Join-Path $PSScriptRoot '..\lib\grft-cli-raw.ps1' } else { $null }
-if ($libPath -and (Test-Path -LiteralPath $libPath)) {
-    . $libPath
-}
-elseif ($GrftCliRawBase) {
-    $rawContent = (Invoke-WebRequest -Uri "$($GrftCliRawBase.TrimEnd('/'))/lib/grft-cli-raw.ps1" -UseBasicParsing).Content
+
+if ($pipeRawBase) {
+    $rawContent = (Invoke-WebRequest -Uri "$pipeRawBase/lib/grft-cli-raw.ps1" -UseBasicParsing).Content
     if ($rawContent -is [byte[]]) { $rawContent = [System.Text.Encoding]::UTF8.GetString($rawContent) }
     . ([ScriptBlock]::Create([string]$rawContent))
+}
+elseif ($libPath -and (Test-Path -LiteralPath $libPath)) {
+    . $libPath
 }
 else {
     throw 'Set $GrftCliRawBase from get/plugin or plugin stub before pipe | iex.'
@@ -23,7 +24,7 @@ else {
 Initialize-GrftCliRawContext
 
 $checkoutRoot = if ($PSScriptRoot) { Split-Path -Parent $PSScriptRoot } else { $null }
-$useCheckout = $checkoutRoot -and (Test-GrftPowerShellCliCheckout -CliRoot $checkoutRoot)
+$useCheckout = (-not $pipeRawBase) -and $checkoutRoot -and (Test-GrftPowerShellCliCheckout -CliRoot $checkoutRoot)
 
 if ($useCheckout) {
     $script:CliDir = $checkoutRoot
@@ -35,14 +36,17 @@ if ($useCheckout) {
     . (Join-Path $checkoutRoot 'lib\plugin-installer.ps1')
 }
 else {
-    $ensurePath = if ($checkoutRoot) { Join-Path $checkoutRoot 'ensure-ps-cli-layout.ps1' } else { $null }
-    if ($ensurePath -and (Test-Path -LiteralPath $ensurePath)) {
-        . $ensurePath
+    $script:GrftEphemeralRawBase = $script:GrftRawBase
+    $script:GrftEphemeralIncludePlugins = $true
+    $bootstrapPath = if ($checkoutRoot) { Join-Path $checkoutRoot 'lib\grft-ephemeral-bootstrap.ps1' } else { $null }
+    if ($bootstrapPath -and (Test-Path -LiteralPath $bootstrapPath)) {
+        . $bootstrapPath
     }
     else {
-        Import-GrftPowerShellScriptFromRaw -GrftRawBase $script:GrftRawBase -RelativePath 'ensure-ps-cli-layout.ps1'
+        $bootBody = (Invoke-WebRequest -Uri "$($script:GrftRawBase)/lib/grft-ephemeral-bootstrap.ps1" -UseBasicParsing).Content
+        if ($bootBody -is [byte[]]) { $bootBody = [System.Text.Encoding]::UTF8.GetString($bootBody) }
+        . ([ScriptBlock]::Create([string]$bootBody))
     }
-    Initialize-GraftPowerShellCliEphemeral -GrftRawBase $script:GrftRawBase -IncludePluginStack
     $GraftCliDir = $PWD.Path
 }
 
