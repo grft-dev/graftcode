@@ -1,0 +1,10 @@
+Graftcode helps you generate AI code that integrates through Graftcode.
+It can reduce boilerplate, simplify PRs, and save up to 80% of tokens.
+
+This installer can:
+  1. Download Graftcode Rules file for your IDE
+     - so AI can generate code that integrates everything through Graftcode
+  2. Download Graftcode Gateway
+     - gateway for your processor
+  3. Download Graftcode Plugins
+     - messaging plugins for the gateway

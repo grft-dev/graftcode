@@ -49,6 +49,21 @@ grft version
 
 When `grft` runs from `~/.grft`, it checks `cli/VERSION` on GitHub and self-updates before running your command.
 
+## Branch / pre-merge testing (raw)
+
+1. Edit **`cli/grft-raw-config.ps1`** — only **`$GrftCliGitRef`** (e.g. `feature/5272-grft-cli-installer-dx` or `main`).
+2. Run **`.\cli\scripts\sync-cli-raw.ps1`** — regenerates manifest, `grft-raw-config.sh`, locators, deep-link stubs, and pipe bootstrap URLs in **`gg.*`**, **`install.*`**, **`rules|plugin/invoke.*`** (no hand-editing those URLs).
+3. Commit sync output, push, then pipe:
+
+```powershell
+. .\cli\grft-raw-config.ps1
+iwr "$GrftCliRawBase/gg.ps1" -UseBasicParsing | iex
+iwr "$GrftCliRawBase/plugin/rabbitmq.ps1" -UseBasicParsing | iex
+iwr "$GrftCliRawBase/rules/cursor.ps1" -UseBasicParsing | iex
+```
+
+Before merge to prod: set **`$GrftCliGitRef = 'main'`**, run sync again, commit. Production (after merge): **`iwr https://grft.dev/get/gg | iex`**, **`iwr https://grft.dev/get/rules/cursor | iex`**, **`iwr https://grft.dev/get/plugin/rabbitmq | iex`**.
+
 ## One-shot install (no PATH)
 
 Still works without installing `grft`:
@@ -93,4 +108,6 @@ iwr https://grft.dev/get | iex
 
 ## Plugin names for `grft get plugin`
 
-`rabbitmq`, `servicebus` (aliases: `service-bus`, `azure-servicebus`, `asb`)
+Source of truth: [`grft-raw-config.ps1`](grft-raw-config.ps1) + [`plugins.manifest.json`](plugins.manifest.json) (run `scripts/sync-cli-raw.ps1` before push).
+
+Ids on current manifest: `kafka`, `pubsub`, `rabbitmq`, `servicebus`, `sqs`, plus aliases per entry (e.g. `asb` → `servicebus`).
