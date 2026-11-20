@@ -29,4 +29,4 @@ Requires network (GitHub API). No token needed for public releases under normal 
 
 Single source for raw base: [`grft-raw-config.ps1`](../grft-raw-config.ps1) (`$GrftCliRepoRawRoot` + `/cli`).
 
-Shared (never generated): `deep-link.ps1`, `deep-link.sh`. `invoke.*` loads `grft-raw-config.*` when env is unset.
+Shared (never generated): `deep-link.ps1`, `deep-link.sh`. Per-IDE/plugin stubs only set the ID and `curl`/`iex` `rules|plugin/invoke.*` (no locator dance). `invoke.*` loads `grft-raw-config.*` when env is unset.
