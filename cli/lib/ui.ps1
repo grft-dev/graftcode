@@ -300,6 +300,39 @@ function Show-UiRulesInstalled {
   }
 }
 
+function Show-UiGrftInstalled {
+  param(
+    [string]$Version,
+    [string]$GrftHome,
+    [string]$BinPath,
+    [switch]$Piped,
+    [string]$PathLine
+  )
+
+  Write-Host ''
+  Write-Host "Installed Graftcode CLI $Version" -ForegroundColor Green
+  Write-Host "  Home: $GrftHome"
+  Write-Host "  Bin:  $BinPath"
+  Write-Host ''
+  if ($Piped) {
+    Write-Host 'Pipe install (iwr | iex): this session PATH was updated — run grft now.' -ForegroundColor Cyan
+  }
+  else {
+    Write-Host 'In this PowerShell window you can run now:' -ForegroundColor Cyan
+  }
+  Write-Host '  grft'
+  Write-Host '  grft get gg'
+  Write-Host '  grft get rules cursor'
+  Write-Host '  grft get plugin rabbitmq'
+  if (-not [string]::IsNullOrWhiteSpace($PathLine)) {
+    Write-Host ''
+    Write-Host 'If grft is not found yet:' -ForegroundColor DarkGray
+    Write-Host "  $PathLine"
+    Write-Host '  close and reopen PowerShell (User PATH is already set)'
+    Write-Host '  from cmd.exe: start a new cmd or pwsh window'
+  }
+}
+
 function Show-UiDone {
   Write-Host ''
   Write-Host 'Done.' -ForegroundColor Green
