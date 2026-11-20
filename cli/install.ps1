@@ -4,7 +4,38 @@ $ProgressPreference = 'SilentlyContinue'
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
 
-$GrftRawBase = 'https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli'
+$GrftRawBase = $null
+if ($env:GRFT_CLI_RAW_BASE) {
+    $GrftRawBase = $env:GRFT_CLI_RAW_BASE.TrimEnd('/')
+}
+
+if (-not $GrftRawBase -and $PSScriptRoot) {
+    $checkoutCfg = Join-Path $PSScriptRoot 'grft-raw-config.ps1'
+    if (Test-Path -LiteralPath $checkoutCfg) {
+        . $checkoutCfg
+        if ($GrftCliRawBase) {
+            $GrftRawBase = $GrftCliRawBase.TrimEnd('/')
+        }
+    }
+}
+
+if (-not $GrftRawBase -and -not $PSScriptRoot) {
+    $GrftRawLocatorPs1Url = 'https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/feature/5272-grft-cli-installer-dx/cli/grft-raw-locator.ps1'
+    $configUrl = (Invoke-WebRequest -UseBasicParsing -Uri $GrftRawLocatorPs1Url).Content.Trim()
+    $cfgBody = (Invoke-WebRequest -UseBasicParsing -Uri $configUrl).Content
+    if ($cfgBody -is [byte[]]) {
+        $cfgBody = [System.Text.Encoding]::UTF8.GetString($cfgBody)
+    }
+    . ([ScriptBlock]::Create([string]$cfgBody))
+    if ($GrftCliRawBase) {
+        $GrftRawBase = $GrftCliRawBase.TrimEnd('/')
+    }
+}
+
+if (-not $GrftRawBase) {
+    $GrftRawBase = 'https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli'
+}
+
 $GrftHome = if ($env:GRFT_HOME) { $env:GRFT_HOME } else { Join-Path $env:USERPROFILE '.grft' }
 $BinDir = Join-Path $GrftHome 'bin'
 $SourceDir = $PSScriptRoot

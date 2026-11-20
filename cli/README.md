@@ -51,9 +51,9 @@ When `grft` runs from `~/.grft`, it checks `cli/VERSION` on GitHub and self-upda
 
 ## Branch / pre-merge testing (raw)
 
-1. Edit **`cli/grft-raw-config.ps1`** — only `$GrftCliGitRef` (e.g. `feature/5272-grft-cli-installer-dx`).
-2. Run **`.\cli\scripts\sync-plugins-manifest.ps1`** (refreshes `plugin/*`, `rules/*`, `grft-raw-config.sh`, invoke bootstrap URLs).
-3. Push, then pipe — **jedna baza** w `grft-raw-config.ps1`; stuby tylko wołają `invoke`:
+1. Edit **`cli/grft-raw-config.ps1`** — only **`$GrftCliGitRef`** (e.g. `feature/5272-grft-cli-installer-dx` or `main`).
+2. Run **`.\cli\scripts\sync-cli-raw.ps1`** — regenerates manifest, `grft-raw-config.sh`, locators, deep-link stubs, and pipe bootstrap URLs in **`gg.*`**, **`install.*`**, **`rules|plugin/invoke.*`** (no hand-editing those URLs).
+3. Commit sync output, push, then pipe:
 
 ```powershell
 . .\cli\grft-raw-config.ps1
@@ -62,7 +62,7 @@ iwr "$GrftCliRawBase/plugin/rabbitmq.ps1" -UseBasicParsing | iex
 iwr "$GrftCliRawBase/rules/cursor.ps1" -UseBasicParsing | iex
 ```
 
-Reset **`$GrftCliGitRef`** to `main` and re-run sync before merge. Production (after merge): **`iwr https://grft.dev/get/gg | iex`**, **`iwr https://grft.dev/get/rules/cursor | iex`**, **`iwr https://grft.dev/get/plugin/rabbitmq | iex`**.
+Before merge to prod: set **`$GrftCliGitRef = 'main'`**, run sync again, commit. Production (after merge): **`iwr https://grft.dev/get/gg | iex`**, **`iwr https://grft.dev/get/rules/cursor | iex`**, **`iwr https://grft.dev/get/plugin/rabbitmq | iex`**.
 
 ## One-shot install (no PATH)
 
@@ -108,6 +108,6 @@ iwr https://grft.dev/get | iex
 
 ## Plugin names for `grft get plugin`
 
-Source of truth: [`plugins.manifest.json`](plugins.manifest.json) (sync with `scripts/sync-plugins-manifest.ps1` before push).
+Source of truth: [`grft-raw-config.ps1`](grft-raw-config.ps1) + [`plugins.manifest.json`](plugins.manifest.json) (run `scripts/sync-cli-raw.ps1` before push).
 
 Ids on current manifest: `kafka`, `pubsub`, `rabbitmq`, `servicebus`, `sqs`, plus aliases per entry (e.g. `asb` → `servicebus`).

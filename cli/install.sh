@@ -2,8 +2,6 @@
 # Installs the Graftcode CLI (grft) into ~/.grft — no admin/sudo required.
 set -eu
 
-GRFT_RAW_BASE="${GRFT_RAW_BASE:-https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli}"
-CLI_RAW_BASE="${CLI_RAW_BASE:-$GRFT_RAW_BASE}"
 GRFT_HOME="${GRFT_HOME:-$HOME/.grft}"
 BIN_DIR="$GRFT_HOME/bin"
 
@@ -52,7 +50,7 @@ copy_or_download() {
 # When this file is executed from a git checkout, prefer local files.
 SCRIPT_SOURCE_DIR=""
 case "${0:-}" in
-  ''|-*)
+  ''|-|sh|bash)
     ;;
   *)
     if [ -f "$0" ]; then
@@ -61,9 +59,30 @@ case "${0:-}" in
     ;;
 esac
 
-if [ -n "$SCRIPT_SOURCE_DIR" ] && [ -f "$SCRIPT_SOURCE_DIR/grft-raw-config.sh" ]; then
+if [ -n "${GRAFT_CLI_DIR:-}" ] && [ -f "$GRAFT_CLI_DIR/grft-raw-config.sh" ]; then
+  # shellcheck source=/dev/null
+  . "$GRAFT_CLI_DIR/grft-raw-config.sh"
+elif [ -n "$SCRIPT_SOURCE_DIR" ] && [ -f "$SCRIPT_SOURCE_DIR/grft-raw-config.sh" ]; then
   # shellcheck source=./grft-raw-config.sh
   . "$SCRIPT_SOURCE_DIR/grft-raw-config.sh"
+elif [ -f "$(dirname "$0")/grft-raw-config.sh" ]; then
+  # shellcheck source=./grft-raw-config.sh
+  . "$(dirname "$0")/grft-raw-config.sh"
+elif [ -z "${GRFT_CLI_RAW_BASE:-}" ]; then
+  case "$0" in
+    '' | - | sh | bash)
+      if command -v curl >/dev/null 2>&1; then
+        GRFT_RAW_LOCATOR_SH_URL='https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/feature/5272-grft-cli-installer-dx/cli/grft-raw-locator.sh'
+        cfg_url="$(curl -fsSL "$GRFT_RAW_LOCATOR_SH_URL" </dev/null | tr -d '\r\n')"
+        cfg_tmp="$(mktemp)"
+        curl -fsSL "$cfg_url" -o "$cfg_tmp" </dev/null
+        sed 's/\r$//' "$cfg_tmp" > "${cfg_tmp}.lf"
+        # shellcheck source=/dev/null
+        . "${cfg_tmp}.lf"
+        rm -f "$cfg_tmp" "${cfg_tmp}.lf"
+      fi
+      ;;
+  esac
 fi
 GRFT_RAW_BASE="${GRFT_RAW_BASE:-${GRFT_CLI_RAW_BASE:-https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli}}"
 CLI_RAW_BASE="${CLI_RAW_BASE:-$GRFT_RAW_BASE}"
