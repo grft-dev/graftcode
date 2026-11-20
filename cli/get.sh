@@ -1,12 +1,12 @@
 #!/bin/sh
-# GRFT_VERSION=0.1.2
+# GRFT_VERSION=0.1.3
 if ! [ -t 0 ]; then
   GRFT_PIPE_INVOCATION=1
   export GRFT_PIPE_INVOCATION
 fi
 set -eu
 
-GRFT_VERSION="0.1.2"
+GRFT_VERSION="0.1.3"
 if [ -n "${GRAFT_CLI_DIR:-}" ] && [ -f "$GRAFT_CLI_DIR/grft-raw-config.sh" ]; then
   # shellcheck source=/dev/null
   . "$GRAFT_CLI_DIR/grft-raw-config.sh"

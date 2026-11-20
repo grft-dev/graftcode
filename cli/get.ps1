@@ -1,8 +1,8 @@
-# GRFT_VERSION=0.1.2
+# GRFT_VERSION=0.1.3
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
-$GrftVersion = '0.1.2'
+$GrftVersion = '0.1.3'
 $grftLib = if ($PSScriptRoot) { Join-Path $PSScriptRoot 'lib\grft-cli-raw.ps1' } else { $null }
 if ($grftLib -and (Test-Path -LiteralPath $grftLib)) {
     . $grftLib
