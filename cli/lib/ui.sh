@@ -371,6 +371,9 @@ ui_show_grft_installed() {
   ui_say "  grft get gg"
   ui_say "  grft get rules cursor"
   ui_say "  grft get plugin rabbitmq"
+  ui_say ""
+  ui_say "To uninstall:"
+  ui_say "  grft uninstall    # remove ~/.grft and PATH entry"
 }
 
 ui_show_done() {

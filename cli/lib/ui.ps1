@@ -327,6 +327,9 @@ function Show-UiGrftInstalled {
   Write-Host '  grft get gg'
   Write-Host '  grft get rules cursor'
   Write-Host '  grft get plugin rabbitmq'
+  Write-Host ''
+  Write-Host 'To uninstall:' -ForegroundColor DarkGray
+  Write-Host '  grft uninstall    # remove ~/.grft and User PATH entry'
   if (-not [string]::IsNullOrWhiteSpace($PathLine)) {
     Write-Host ''
     Write-Host 'If grft is not found yet:' -ForegroundColor DarkGray
