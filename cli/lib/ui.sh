@@ -357,12 +357,15 @@ ui_show_grft_installed() {
   ui_say "  Bin:  $bin_path"
   ui_say ""
   if [ "$piped" = 1 ]; then
-    ui_say "This shell started before install (curl | sh). Run:"
+    ui_say "This shell started before install (curl | sh). Refresh PATH — pick one:"
     ui_say "  $path_line"
+    ui_say "  . ~/.bashrc    # if bash and rc was updated"
+    ui_say "  exec bash -l   # new login bash in this session"
+    ui_say "  open a new terminal (e.g. docker exec -it … bash)"
     ui_say ""
     ui_say "Then:"
   else
-    ui_say "Open a new terminal (or reload your shell), then run:"
+    ui_say "Open a new terminal, or reload your shell (. ~/.bashrc / exec bash -l), then run:"
   fi
   ui_say "  grft"
   ui_say "  grft get gg"

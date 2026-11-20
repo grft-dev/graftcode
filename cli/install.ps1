@@ -119,10 +119,18 @@ Write-Host "Graftcode CLI $Version installed." -ForegroundColor Green
 Write-Host "  Home: $GrftHome"
 Write-Host "  Bin:  $BinDir\grft.cmd"
 Write-Host ""
-Write-Host "In this PowerShell window you can run now:" -ForegroundColor Cyan
+if (-not $PSScriptRoot) {
+    Write-Host "Pipe install (irm | iex): this PowerShell session PATH was updated — run grft now." -ForegroundColor Cyan
+}
+else {
+    Write-Host "In this PowerShell window you can run now:" -ForegroundColor Cyan
+}
 Write-Host "  grft"
 Write-Host "  grft get gg"
 Write-Host "  grft get rules cursor"
 Write-Host "  grft get plugin rabbitmq"
 Write-Host ""
-Write-Host "Note: if you ran this from cmd.exe, that parent cmd window will still need a restart to pick up the new PATH." -ForegroundColor DarkGray
+Write-Host "If grft is not found yet:" -ForegroundColor DarkGray
+Write-Host "  `$env:Path = `"$BinDir;`$env:Path`""
+Write-Host "  close and reopen PowerShell (User PATH is already set)"
+Write-Host "  from cmd.exe: start a new cmd or pwsh window"
