@@ -1,6 +1,23 @@
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
+if (-not $GrftCliRawBase -and $env:GRFT_CLI_RAW_BASE) {
+    $GrftCliRawBase = $env:GRFT_CLI_RAW_BASE.TrimEnd('/')
+}
+
+if (-not $GrftCliRawBase -and -not $PSScriptRoot) {
+    $GrftRawLocatorPs1Url = 'https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/feature/5272-grft-cli-installer-dx/cli/grft-raw-locator.ps1'
+    $configUrl = (Invoke-WebRequest -UseBasicParsing -Uri $GrftRawLocatorPs1Url).Content.Trim()
+    $cfgBody = (Invoke-WebRequest -UseBasicParsing -Uri $configUrl).Content
+    if ($cfgBody -is [byte[]]) {
+        $cfgBody = [System.Text.Encoding]::UTF8.GetString($cfgBody)
+    }
+    . ([ScriptBlock]::Create([string]$cfgBody))
+    if ($GrftCliRawBase) {
+        $GrftCliRawBase = $GrftCliRawBase.TrimEnd('/')
+    }
+}
+
 $pipeRawBase = if ($GrftCliRawBase) { $GrftCliRawBase.TrimEnd('/') } else { $null }
 $grftLib = if ($PSScriptRoot) { Join-Path $PSScriptRoot 'lib\grft-cli-raw.ps1' } else { $null }
 
