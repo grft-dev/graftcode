@@ -2,72 +2,18 @@
 # Installs the Graftcode CLI (grft) into ~/.grft — no admin/sudo required.
 set -eu
 
-GRFT_HOME="${GRFT_HOME:-$HOME/.grft}"
-BIN_DIR="$GRFT_HOME/bin"
-
-say() {
-  echo "$@"
-}
-
-has_cmd() {
-  command -v "$1" >/dev/null 2>&1
-}
-
-download_file() {
-  url="$1"
-  output="$2"
-  label="$3"
-
-  say "Downloading $label..."
-  mkdir -p "$(dirname "$output")"
-
-  if has_cmd curl; then
-    curl -fsSL "$url" -o "$output"
-  elif has_cmd wget; then
-    wget -q -O "$output" "$url"
-  else
-    say "Error: curl or wget is required."
-    exit 1
-  fi
-
-  say "Downloaded $label"
-}
-
-copy_or_download() {
-  local_name="$1"
-  dest="$2"
-  label="$3"
-
-  if [ -n "${SCRIPT_SOURCE_DIR:-}" ] && [ -f "$SCRIPT_SOURCE_DIR/$local_name" ]; then
-    mkdir -p "$(dirname "$dest")"
-    cp "$SCRIPT_SOURCE_DIR/$local_name" "$dest"
-    say "Installed $label from local checkout"
-  else
-    download_file "$GRFT_RAW_BASE/$local_name" "$dest" "$label"
-  fi
-}
-
-# When this file is executed from a git checkout, prefer local files.
-SCRIPT_SOURCE_DIR=""
-case "${0:-}" in
-  ''|-|sh|bash)
-    ;;
-  *)
-    if [ -f "$0" ]; then
-      SCRIPT_SOURCE_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
-    fi
-    ;;
-esac
-
 if [ -n "${GRAFT_CLI_DIR:-}" ] && [ -f "$GRAFT_CLI_DIR/grft-raw-config.sh" ]; then
   # shellcheck source=/dev/null
   . "$GRAFT_CLI_DIR/grft-raw-config.sh"
-elif [ -n "$SCRIPT_SOURCE_DIR" ] && [ -f "$SCRIPT_SOURCE_DIR/grft-raw-config.sh" ]; then
+elif [ -n "${GRFT_INSTALL_SOURCE_DIR:-}" ] && [ -f "$GRFT_INSTALL_SOURCE_DIR/grft-raw-config.sh" ]; then
   # shellcheck source=./grft-raw-config.sh
-  . "$SCRIPT_SOURCE_DIR/grft-raw-config.sh"
-elif [ -f "$(dirname "$0")/grft-raw-config.sh" ]; then
+  . "$GRFT_INSTALL_SOURCE_DIR/grft-raw-config.sh"
+elif [ -f "$(dirname "$0")/grft-raw-config.sh" ] 2>/dev/null; then
+  _cfg_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+  GRFT_INSTALL_SOURCE_DIR="$_cfg_dir"
+  export GRFT_INSTALL_SOURCE_DIR
   # shellcheck source=./grft-raw-config.sh
-  . "$(dirname "$0")/grft-raw-config.sh"
+  . "$_cfg_dir/grft-raw-config.sh"
 elif [ -z "${GRFT_CLI_RAW_BASE:-}" ]; then
   case "$0" in
     '' | - | sh | bash)
@@ -84,86 +30,90 @@ elif [ -z "${GRFT_CLI_RAW_BASE:-}" ]; then
       ;;
   esac
 fi
-GRFT_RAW_BASE="${GRFT_RAW_BASE:-${GRFT_CLI_RAW_BASE:-https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli}}"
-CLI_RAW_BASE="${CLI_RAW_BASE:-$GRFT_RAW_BASE}"
 
-say "Installing Graftcode CLI into $GRFT_HOME ..."
+CLI_RAW_BASE="${CLI_RAW_BASE:-${GRFT_CLI_RAW_BASE:-https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli}}"
+GRFT_RAW_BASE="${GRFT_RAW_BASE:-$CLI_RAW_BASE}"
+export CLI_RAW_BASE GRFT_RAW_BASE
 
-mkdir -p "$GRFT_HOME" "$BIN_DIR"
-
-copy_or_download "VERSION" "$GRFT_HOME/VERSION" "VERSION"
-copy_or_download "get.sh" "$GRFT_HOME/get.sh" "get.sh"
-copy_or_download "grft-raw-config.sh" "$GRFT_HOME/grft-raw-config.sh" "grft-raw-config.sh"
-copy_or_download "ensure-sh-cli-layout.sh" "$GRFT_HOME/ensure-sh-cli-layout.sh" "ensure-sh-cli-layout.sh"
-copy_or_download "plugins.manifest.json" "$GRFT_HOME/plugins.manifest.json" "plugins.manifest.json"
-copy_or_download "bin/grft" "$BIN_DIR/grft" "grft"
-chmod +x "$GRFT_HOME/get.sh" "$GRFT_HOME/ensure-sh-cli-layout.sh" "$BIN_DIR/grft"
-
-mkdir -p "$GRFT_HOME/lib" "$GRFT_HOME/assets"
-for lib_name in ui.sh gateway-installer.sh plugin-manifest.sh plugin-installer.sh; do
-  copy_or_download "lib/$lib_name" "$GRFT_HOME/lib/$lib_name" "lib/$lib_name"
-done
-copy_or_download "assets/logo_ascii.txt" "$GRFT_HOME/assets/logo_ascii.txt" "assets/logo_ascii.txt"
-
-VERSION="$(tr -d '[:space:]' < "$GRFT_HOME/VERSION")"
-
-# Prefer adding ~/.grft/bin to PATH via shell rc when not already present.
-path_line='export PATH="$HOME/.grft/bin:$PATH"'
-if [ -n "${GRFT_HOME:-}" ] && [ "$GRFT_HOME" != "$HOME/.grft" ]; then
-  path_line="export PATH=\"$BIN_DIR:\$PATH\""
-fi
-
-already_on_path=0
-case ":$PATH:" in
-  *":$BIN_DIR:"*) already_on_path=1 ;;
-esac
-
-if [ "$already_on_path" -eq 0 ]; then
-  PATH="$BIN_DIR:$PATH"
-  export PATH
-fi
-
-append_path_rc() {
-  rc_file="$1"
-  if [ ! -f "$rc_file" ]; then
-    return 0
-  fi
-  if grep -F '.grft/bin' "$rc_file" >/dev/null 2>&1; then
-    return 0
-  fi
-  printf '\n# Graftcode CLI\n%s\n' "$path_line" >> "$rc_file"
-  say "Added PATH entry to $rc_file"
+graft_cli_source_sh_file() {
+  sh_path="$1"
+  sh_local="$(mktemp)"
+  sed 's/\r$//' "$sh_path" > "$sh_local"
+  # shellcheck source=/dev/null
+  . "$sh_local"
+  rm -f "$sh_local"
 }
 
-case "${SHELL:-}" in
-  */zsh)
-    append_path_rc "$HOME/.zshrc"
-    ;;
-  */bash)
-    if [ -f "$HOME/.bashrc" ]; then
-      append_path_rc "$HOME/.bashrc"
-    else
-      append_path_rc "$HOME/.bash_profile"
-    fi
-    ;;
-  *)
-    append_path_rc "$HOME/.profile"
-    if [ -f "$HOME/.bashrc" ]; then
-      append_path_rc "$HOME/.bashrc"
-    fi
-    if [ -f "$HOME/.zshrc" ]; then
-      append_path_rc "$HOME/.zshrc"
-    fi
-    ;;
-esac
+graft_cli_source_lib_from_url() {
+  lib_rel="$1"
+  if ! command -v curl >/dev/null 2>&1; then
+    echo "Error: curl is required to load $lib_rel from $CLI_RAW_BASE."
+    exit 1
+  fi
+  lib_tmp="$(mktemp)"
+  curl -fsSL "$CLI_RAW_BASE/$lib_rel" -o "$lib_tmp"
+  sed 's/\r$//' "$lib_tmp" > "${lib_tmp}.lf"
+  # shellcheck source=/dev/null
+  . "${lib_tmp}.lf"
+  rm -f "$lib_tmp" "${lib_tmp}.lf"
+}
 
-say ""
-say "Graftcode CLI $VERSION installed."
-say "  Home: $GRFT_HOME"
-say "  Bin:  $BIN_DIR/grft"
-say ""
-say "Open a new terminal (or reload your shell), then run:"
-say "  grft"
-say "  grft get gg"
-say "  grft get rules cursor"
-say "  grft get plugin rabbitmq"
+graft_cli_resolve_script_dir() {
+  case "$0" in
+    - | sh | bash | '')
+      echo ""
+      ;;
+    *)
+      CDPATH= cd -- "$(dirname -- "$0")" && pwd
+      ;;
+  esac
+}
+
+graft_cli_source_lib() {
+  lib_name="$1"
+  lib_rel="lib/$lib_name"
+
+  if [ -n "${GRAFT_CLI_DIR:-}" ] && [ -f "$GRAFT_CLI_DIR/$lib_rel" ]; then
+    graft_cli_source_sh_file "$GRAFT_CLI_DIR/$lib_rel"
+    return
+  fi
+
+  script_dir="$(graft_cli_resolve_script_dir)"
+  if [ -n "$script_dir" ] && [ -f "$script_dir/$lib_rel" ]; then
+    GRAFT_CLI_DIR="$script_dir"
+    export GRAFT_CLI_DIR
+    graft_cli_source_sh_file "$script_dir/$lib_rel"
+    return
+  fi
+
+  graft_cli_source_lib_from_url "$lib_rel"
+}
+
+if [ -z "${GRFT_INSTALL_SOURCE_DIR:-}" ]; then
+  _bootstrap_dir="$(graft_cli_resolve_script_dir)"
+  if [ -n "$_bootstrap_dir" ]; then
+    GRFT_INSTALL_SOURCE_DIR="$_bootstrap_dir"
+    export GRFT_INSTALL_SOURCE_DIR
+  fi
+fi
+
+if [ -n "${GRAFT_CLI_DIR:-}" ] && [ -f "$GRAFT_CLI_DIR/lib/ui.sh" ]; then
+  graft_cli_source_lib ui.sh
+  graft_cli_source_lib grft-cli-installer.sh
+elif [ -n "${GRFT_INSTALL_SOURCE_DIR:-}" ] && [ -f "$GRFT_INSTALL_SOURCE_DIR/lib/ui.sh" ]; then
+  GRAFT_CLI_DIR="$GRFT_INSTALL_SOURCE_DIR"
+  export GRAFT_CLI_DIR
+  graft_cli_source_lib ui.sh
+  graft_cli_source_lib grft-cli-installer.sh
+else
+  if ! command -v curl >/dev/null 2>&1; then
+    echo "Error: curl is required to run the CLI installer." >&2
+    exit 1
+  fi
+  export GRAFT_CLI_EPHEMERAL=1
+  graft_cli_source_lib ui.sh
+  graft_cli_source_lib grft-cli-installer.sh
+fi
+
+install_grft_to_home
+ui_show_done

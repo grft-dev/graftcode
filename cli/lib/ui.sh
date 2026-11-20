@@ -344,6 +344,32 @@ ui_show_plugin_installed() {
   ui_say "$install_dir"
 }
 
+ui_show_grft_installed() {
+  version="$1"
+  grft_home="$2"
+  bin_path="$3"
+  piped="${4:-0}"
+  path_line="${5:-export PATH=\"\$HOME/.grft/bin:\$PATH\"}"
+
+  ui_say ""
+  ui_say_green "Installed Graftcode CLI $version"
+  ui_say "  Home: $grft_home"
+  ui_say "  Bin:  $bin_path"
+  ui_say ""
+  if [ "$piped" = 1 ]; then
+    ui_say "This shell started before install (curl | sh). Run:"
+    ui_say "  $path_line"
+    ui_say ""
+    ui_say "Then:"
+  else
+    ui_say "Open a new terminal (or reload your shell), then run:"
+  fi
+  ui_say "  grft"
+  ui_say "  grft get gg"
+  ui_say "  grft get rules cursor"
+  ui_say "  grft get plugin rabbitmq"
+}
+
 ui_show_done() {
   ui_say ""
   ui_say_green "Done."
