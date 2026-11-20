@@ -11,6 +11,15 @@ else {
     if (-not $GrftCliRawBase -and $env:GRFT_CLI_RAW_BASE) {
         $GrftCliRawBase = $env:GRFT_CLI_RAW_BASE
     }
+    if (-not $GrftCliRawBase -and $PSScriptRoot) {
+        $installedCfg = Join-Path $PSScriptRoot 'grft-raw-config.ps1'
+        if (Test-Path -LiteralPath $installedCfg) {
+            . $installedCfg
+        }
+    }
+    if (-not $GrftCliRawBase -and $script:GrftCliRawBase) {
+        $GrftCliRawBase = $script:GrftCliRawBase
+    }
     if (-not $GrftCliRawBase) {
         throw 'Set $GrftCliRawBase or GRFT_CLI_RAW_BASE (rules/plugin stub or grft-raw-config) before pipe | iex, or run from checkout.'
     }

@@ -95,7 +95,7 @@ function Initialize-GraftPowerShellCliLayout {
         [string]$GrftHome
     )
 
-    $libNames = @('ui.ps1', 'gateway-installer.ps1', 'plugin-manifest.ps1', 'plugin-installer.ps1', 'rules-installer.ps1', 'installer-copy.ps1')
+    $libNames = @('grft-cli-raw.ps1', 'ui.ps1', 'gateway-installer.ps1', 'plugin-manifest.ps1', 'plugin-installer.ps1', 'rules-installer.ps1', 'installer-copy.ps1')
 
     foreach ($root in @(
         $PSScriptRoot,
