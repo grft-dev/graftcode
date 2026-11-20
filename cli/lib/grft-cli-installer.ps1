@@ -14,7 +14,12 @@ function Install-GrftToHome {
     Show-UiGatewayIntro
   }
 
-  Ui-Say "Installing Graftcode CLI into $GrftHome ..."
+  if (Get-Command Ui-Say -ErrorAction SilentlyContinue) {
+    Ui-Say "Installing Graftcode CLI into $GrftHome ..."
+  }
+  else {
+    Write-Host "Installing Graftcode CLI into $GrftHome ..." -ForegroundColor Cyan
+  }
 
   New-Item -ItemType Directory -Path $GrftHome -Force | Out-Null
   New-Item -ItemType Directory -Path $BinDir -Force | Out-Null

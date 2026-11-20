@@ -9,7 +9,7 @@ if ($env:GRFT_CLI_RAW_BASE) {
     $GrftRawBase = $env:GRFT_CLI_RAW_BASE.TrimEnd('/')
 }
 
-$SourceDir = $PSScriptRoot
+$SourceDir = if ([string]::IsNullOrWhiteSpace($PSScriptRoot)) { $null } else { $PSScriptRoot }
 
 if (-not $GrftRawBase -and $SourceDir) {
     $checkoutCfg = Join-Path $SourceDir 'grft-raw-config.ps1'
@@ -41,19 +41,16 @@ if (-not $GrftRawBase) {
 $script:GrftRawBase = $GrftRawBase
 $script:CliRawBase = $GrftRawBase.TrimEnd('/')
 
-function Import-GrftInstallLib {
-    param([string]$LibFileName)
+foreach ($libFileName in @('ui.ps1', 'grft-cli-installer.ps1')) {
+    $libRel = "lib\$libFileName"
+    $local = if ($SourceDir) { Join-Path $SourceDir $libRel } else { $null }
 
-    $libRel = "lib\$LibFileName"
-    if ($SourceDir) {
-        $local = Join-Path $SourceDir $libRel
-        if (Test-Path -LiteralPath $local) {
-            . $local
-            return
-        }
+    if ($local -and (Test-Path -LiteralPath $local)) {
+        . $local
+        continue
     }
 
-    $url = "$($script:CliRawBase)/lib/$LibFileName"
+    $url = "$($script:CliRawBase)/lib/$libFileName"
     $libBody = (Invoke-WebRequest -Uri $url -UseBasicParsing).Content
     if ($libBody -is [byte[]]) {
         $libBody = [System.Text.Encoding]::UTF8.GetString($libBody)
@@ -61,8 +58,9 @@ function Import-GrftInstallLib {
     . ([ScriptBlock]::Create([string]$libBody))
 }
 
-Import-GrftInstallLib 'ui.ps1'
-Import-GrftInstallLib 'grft-cli-installer.ps1'
+if (-not (Get-Command Install-GrftToHome -ErrorAction SilentlyContinue)) {
+    throw 'install.ps1 failed to load lib/grft-cli-installer.ps1 (Install-GrftToHome missing).'
+}
 
 $GrftHome = if ($env:GRFT_HOME) { $env:GRFT_HOME } else { Join-Path $env:USERPROFILE '.grft' }
 

@@ -10,9 +10,12 @@ if (-not $script:CliRawBase) {
 }
 
 if (-not $script:CliDir -and -not $script:GrftCliEphemeral) {
-  $uiRoot = $PSScriptRoot
+  $uiRoot = if ([string]::IsNullOrWhiteSpace($PSScriptRoot)) { $null } else { $PSScriptRoot }
   if (-not $uiRoot) {
-    $uiRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+    $invokedFrom = $MyInvocation.MyCommand.Path
+    if (-not [string]::IsNullOrWhiteSpace($invokedFrom)) {
+      $uiRoot = Split-Path -Parent $invokedFrom
+    }
   }
   if ($uiRoot -and (Split-Path -Leaf $uiRoot) -eq 'lib') {
     $script:CliDir = Split-Path -Parent $uiRoot
