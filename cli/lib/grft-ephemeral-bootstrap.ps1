@@ -7,6 +7,9 @@ $includeRules = [bool]$script:GrftEphemeralIncludeRules
 $script:GrftCliEphemeral = $true
 $script:CliRawBase = $base
 
+$GraftCliDir = $PWD.Path
+$script:GraftCliDir = $PWD.Path
+
 $libNames = @('ui.ps1', 'gateway-installer.ps1')
 if ($includePlugins) {
     $libNames += @('plugin-manifest.ps1', 'plugin-installer.ps1')

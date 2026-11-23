@@ -1,4 +1,6 @@
-$script:GraftPluginManifestPath = Join-Path $GraftCliDir 'plugins.manifest.json'
+if ($GraftCliDir) {
+    $script:GraftPluginManifestPath = Join-Path $GraftCliDir 'plugins.manifest.json'
+}
 
 function Get-GraftPluginManifest {
     if ($script:GraftPluginManifestObject) {
