@@ -18,7 +18,7 @@ elif [ -z "${GRFT_CLI_RAW_BASE:-}" ]; then
   case "$0" in
     '' | - | sh | bash)
       if command -v curl >/dev/null 2>&1; then
-GRFT_RAW_LOCATOR_SH_URL='https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/develop/cli/grft-raw-locator.sh'
+GRFT_RAW_LOCATOR_SH_URL='https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli/grft-raw-locator.sh'
         cfg_url="$(curl -fsSL "$GRFT_RAW_LOCATOR_SH_URL" </dev/null | tr -d '\r\n')"
         cfg_tmp="$(mktemp)"
         curl -fsSL "$cfg_url" -o "$cfg_tmp" </dev/null
@@ -31,7 +31,7 @@ GRFT_RAW_LOCATOR_SH_URL='https://raw.githubusercontent.com/grft-dev/graftcode/re
   esac
 fi
 
-CLI_RAW_BASE="${CLI_RAW_BASE:-${GRFT_CLI_RAW_BASE:-https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/develop/cli}}"
+CLI_RAW_BASE="${CLI_RAW_BASE:-${GRFT_CLI_RAW_BASE:-https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli}}"
 GRFT_RAW_BASE="${GRFT_RAW_BASE:-$CLI_RAW_BASE}"
 export CLI_RAW_BASE GRFT_RAW_BASE
 

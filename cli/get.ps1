@@ -23,7 +23,7 @@ else {
         $GrftCliRawBase = $script:GrftCliRawBase
     }
     if (-not $GrftCliRawBase -and -not $PSScriptRoot) {
-        $GrftRawLocatorPs1Url = 'https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/develop/cli/grft-raw-locator.ps1'
+$GrftRawLocatorPs1Url = 'https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli/grft-raw-locator.ps1'
         $configUrl = (Invoke-WebRequest -UseBasicParsing -Uri $GrftRawLocatorPs1Url).Content.Trim()
         $cfgBody = (Invoke-WebRequest -UseBasicParsing -Uri $configUrl).Content
         if ($cfgBody -is [byte[]]) {
@@ -35,7 +35,7 @@ else {
         }
     }
     if (-not $GrftCliRawBase) {
-        $GrftCliRawBase = 'https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/develop/cli'
+        $GrftCliRawBase = 'https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli'
     }
     $tmp = Join-Path $env:TEMP 'grft-cli-raw.ps1'
     Invoke-WebRequest -Uri "$($GrftCliRawBase.TrimEnd('/'))/lib/grft-cli-raw.ps1" -OutFile $tmp -UseBasicParsing

@@ -5,7 +5,7 @@ if (-not $GrftDeepLinkRulesIde) {
 if (-not $GrftCliRawBase -and $env:GRFT_CLI_RAW_BASE) {
     $GrftCliRawBase = $env:GRFT_CLI_RAW_BASE.TrimEnd('/')
 }
-$GrftRawLocatorPs1Url = 'https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/develop/cli/grft-raw-locator.ps1'
+$GrftRawLocatorPs1Url = 'https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli/grft-raw-locator.ps1'
 if (-not $GrftCliRawBase) {
     $importPath = if ($PSScriptRoot) { Join-Path (Split-Path $PSScriptRoot -Parent) 'lib\grft-import-raw-config.ps1' } else { $null }
     if ($importPath -and (Test-Path -LiteralPath $importPath)) {

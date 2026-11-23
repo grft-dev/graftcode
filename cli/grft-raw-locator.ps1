@@ -1,1 +1,1 @@
-https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/develop/cli/grft-raw-config.ps1
+https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli/grft-raw-config.ps1

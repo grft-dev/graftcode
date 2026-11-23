@@ -31,7 +31,7 @@ graft_rules_resolve_raw_base() {
     esac
     return 0
   fi
-  printf '%s' "https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/develop/rules"
+  printf '%s' "https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/rules"
 }
 
 graft_rules_ide_label() {

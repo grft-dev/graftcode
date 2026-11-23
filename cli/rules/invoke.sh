@@ -5,7 +5,7 @@ if [ -z "${GRAFT_DEEP_LINK_RULES_IDE:-}" ]; then
   echo "Error: set GRAFT_DEEP_LINK_RULES_IDE before running rules/invoke.sh" >&2
   exit 1
 fi
-GRFT_RAW_LOCATOR_SH_URL='https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/develop/cli/grft-raw-locator.sh'
+GRFT_RAW_LOCATOR_SH_URL='https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli/grft-raw-locator.sh'
 export GRFT_RAW_LOCATOR_SH_URL
 if [ -z "${GRFT_CLI_RAW_BASE:-}" ]; then
   import_helper=""

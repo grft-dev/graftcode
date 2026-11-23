@@ -22,7 +22,7 @@ if (-not $GrftRawBase -and $SourceDir) {
 }
 
 if (-not $GrftRawBase -and -not $SourceDir) {
-$GrftRawLocatorPs1Url = 'https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/develop/cli/grft-raw-locator.ps1'
+$GrftRawLocatorPs1Url = 'https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli/grft-raw-locator.ps1'
     $configUrl = (Invoke-WebRequest -UseBasicParsing -Uri $GrftRawLocatorPs1Url).Content.Trim()
     $cfgBody = (Invoke-WebRequest -UseBasicParsing -Uri $configUrl).Content
     if ($cfgBody -is [byte[]]) {
@@ -35,7 +35,7 @@ $GrftRawLocatorPs1Url = 'https://raw.githubusercontent.com/grft-dev/graftcode/re
 }
 
 if (-not $GrftRawBase) {
-    $GrftRawBase = 'https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/develop/cli'
+    $GrftRawBase = 'https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli'
 }
 
 $script:GrftRawBase = $GrftRawBase

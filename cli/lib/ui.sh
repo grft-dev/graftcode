@@ -1,7 +1,7 @@
 #!/bin/sh
 # Shared CLI output for Gateway / installer scripts (5272). Dot-source only.
 
-CLI_RAW_BASE="${CLI_RAW_BASE:-https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/develop/cli}"
+CLI_RAW_BASE="${CLI_RAW_BASE:-https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli}"
 UI_BRAND_RGB="${UI_BRAND_RGB:-218;26;96}"
 UI_PROGRESS_RGB="${UI_PROGRESS_RGB:-$UI_BRAND_RGB}"
 UI_PROGRESS_WIDTH="${UI_PROGRESS_WIDTH:-30}"

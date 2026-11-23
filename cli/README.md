@@ -9,19 +9,19 @@ Installs into `~/.grft` (user-level, no admin) and adds `grft` to your PATH.
 ### Windows (PowerShell)
 
 ```powershell
-iwr https://d.grft.dev/install -UseBasicParsing | iex
+iwr https://grft.dev/install | iex
 ```
 
 Interactive get menu (same as `get.ps1`):
 
 ```powershell
-iwr https://d.grft.dev/get -UseBasicParsing | iex
+iwr https://grft.dev/get | iex
 ```
 
-Or raw on `develop`:
+Or raw on `main`:
 
 ```powershell
-irm https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/develop/cli/install.ps1 | iex
+irm https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli/install.ps1 | iex
 ```
 
 When installed from PowerShell, `grft` should work immediately in that same PowerShell session. If you launch the installer from `cmd.exe`, the parent `cmd` window still needs to be reopened because child PowerShell processes cannot modify the parent `cmd` environment.
@@ -35,19 +35,19 @@ Or from a local checkout:
 ### Linux / macOS
 
 ```bash
-curl -fsSL https://d.grft.dev/install | sh
+curl -fsSL https://grft.dev/install | sh
 ```
 
 Interactive get menu:
 
 ```bash
-curl -fsSL https://d.grft.dev/get | sh
+curl -fsSL https://grft.dev/get | sh
 ```
 
-Or raw on `develop`:
+Or raw on `main`:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/develop/cli/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli/install.sh | sh
 ```
 
 Or from a local checkout:
@@ -80,12 +80,12 @@ When `grft` runs from `~/.grft`, it checks `cli/VERSION` on GitHub and self-upda
 3. Commit sync output, push, then pipe:
 
 ```powershell
-iwr https://d.grft.dev/get/gg | iex
-iwr https://d.grft.dev/get/plugin/rabbitmq | iex
-iwr https://d.grft.dev/get/rules/cursor | iex
+iwr https://grft.dev/get/gg | iex
+iwr https://grft.dev/get/plugin/rabbitmq | iex
+iwr https://grft.dev/get/rules/cursor | iex
 ```
 
-Before prod release: set **`$GrftCliGitRef = 'main'`**, run sync again, commit. Production: **`iwr https://grft.dev/get/gg | iex`**, **`iwr https://grft.dev/get/rules/cursor | iex`**, **`iwr https://grft.dev/get/plugin/rabbitmq | iex`**.
+Pre-release DEV host: **`https://d.grft.dev`** tracks GitHub **`develop`**. This branch (`main`) is production **`grft.dev`**.
 
 ## One-shot install (no PATH)
 
@@ -94,19 +94,19 @@ Still works without installing `grft`:
 ### Linux / macOS
 
 ```bash
-curl -fsSL https://d.grft.dev/get | sh
+curl -fsSL https://grft.dev/get | sh
 ```
 
 ### Windows (PowerShell)
 
 ```powershell
-iwr https://d.grft.dev/install -UseBasicParsing | iex
+iwr https://grft.dev/install | iex
 ```
 
 Interactive get menu (same as `get.ps1`):
 
 ```powershell
-iwr https://d.grft.dev/get -UseBasicParsing | iex
+iwr https://grft.dev/get | iex
 ```
 
 ## Layout after install
