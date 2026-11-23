@@ -4,72 +4,65 @@ $ProgressPreference = 'SilentlyContinue'
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
 
-$GrftRawBase = 'https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli'
+$GrftRawBase = $null
+if ($env:GRFT_CLI_RAW_BASE) {
+    $GrftRawBase = $env:GRFT_CLI_RAW_BASE.TrimEnd('/')
+}
+
+$SourceDir = if ([string]::IsNullOrWhiteSpace($PSScriptRoot)) { $null } else { $PSScriptRoot }
+
+if (-not $GrftRawBase -and $SourceDir) {
+    $checkoutCfg = Join-Path $SourceDir 'grft-raw-config.ps1'
+    if (Test-Path -LiteralPath $checkoutCfg) {
+        . $checkoutCfg
+        if ($GrftCliRawBase) {
+            $GrftRawBase = $GrftCliRawBase.TrimEnd('/')
+        }
+    }
+}
+
+if (-not $GrftRawBase -and -not $SourceDir) {
+    $GrftRawLocatorPs1Url = 'https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/develop/cli/grft-raw-locator.ps1'
+    $configUrl = (Invoke-WebRequest -UseBasicParsing -Uri $GrftRawLocatorPs1Url).Content.Trim()
+    $cfgBody = (Invoke-WebRequest -UseBasicParsing -Uri $configUrl).Content
+    if ($cfgBody -is [byte[]]) {
+        $cfgBody = [System.Text.Encoding]::UTF8.GetString($cfgBody)
+    }
+    . ([ScriptBlock]::Create([string]$cfgBody))
+    if ($GrftCliRawBase) {
+        $GrftRawBase = $GrftCliRawBase.TrimEnd('/')
+    }
+}
+
+if (-not $GrftRawBase) {
+    $GrftRawBase = 'https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/develop/cli'
+}
+
+$script:GrftRawBase = $GrftRawBase
+$script:CliRawBase = $GrftRawBase.TrimEnd('/')
+
+foreach ($libFileName in @('ui.ps1', 'grft-cli-installer.ps1')) {
+    $libRel = "lib\$libFileName"
+    $local = if ($SourceDir) { Join-Path $SourceDir $libRel } else { $null }
+
+    if ($local -and (Test-Path -LiteralPath $local)) {
+        . $local
+        continue
+    }
+
+    $url = "$($script:CliRawBase)/lib/$libFileName"
+    $libBody = (Invoke-WebRequest -Uri $url -UseBasicParsing).Content
+    if ($libBody -is [byte[]]) {
+        $libBody = [System.Text.Encoding]::UTF8.GetString($libBody)
+    }
+    . ([ScriptBlock]::Create([string]$libBody))
+}
+
+if (-not (Get-Command Install-GrftToHome -ErrorAction SilentlyContinue)) {
+    throw 'install.ps1 failed to load lib/grft-cli-installer.ps1 (Install-GrftToHome missing).'
+}
+
 $GrftHome = if ($env:GRFT_HOME) { $env:GRFT_HOME } else { Join-Path $env:USERPROFILE '.grft' }
-$BinDir = Join-Path $GrftHome 'bin'
-$SourceDir = $PSScriptRoot
 
-function Save-GrftFile {
-    param(
-        [string]$RelativePath,
-        [string]$OutputPath,
-        [string]$Label
-    )
-
-    $dir = Split-Path -Parent $OutputPath
-    if (-not (Test-Path $dir)) {
-        New-Item -ItemType Directory -Path $dir -Force | Out-Null
-    }
-
-    $LocalRelative = $RelativePath -replace '/', '\'
-    $UrlRelative = $RelativePath -replace '\\', '/'
-    $LocalPath = if ($SourceDir) { Join-Path $SourceDir $LocalRelative } else { $null }
-    if ($LocalPath -and (Test-Path $LocalPath)) {
-        Copy-Item -Path $LocalPath -Destination $OutputPath -Force
-        Write-Host "Installed $Label from local checkout" -ForegroundColor DarkGray
-        return
-    }
-
-    Write-Host "Downloading $Label..."
-    Invoke-WebRequest -Uri "$GrftRawBase/$UrlRelative" -OutFile $OutputPath -UseBasicParsing
-    Write-Host "Downloaded $Label" -ForegroundColor Green
-}
-
-Write-Host "Installing Graftcode CLI into $GrftHome ..." -ForegroundColor Cyan
-
-New-Item -ItemType Directory -Path $GrftHome -Force | Out-Null
-New-Item -ItemType Directory -Path $BinDir -Force | Out-Null
-
-Save-GrftFile -RelativePath 'VERSION' -OutputPath (Join-Path $GrftHome 'VERSION') -Label 'VERSION'
-Save-GrftFile -RelativePath 'get.ps1' -OutputPath (Join-Path $GrftHome 'get.ps1') -Label 'get.ps1'
-Save-GrftFile -RelativePath 'bin/grft.cmd' -OutputPath (Join-Path $BinDir 'grft.cmd') -Label 'grft.cmd'
-
-$Version = (Get-Content -Raw (Join-Path $GrftHome 'VERSION')).Trim()
-
-$userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
-$pathEntries = if ($userPath) { $userPath -split ';' | Where-Object { $_ -ne '' } } else { @() }
-if ($pathEntries -notcontains $BinDir) {
-    $newPath = (@($BinDir) + $pathEntries) -join ';'
-    [Environment]::SetEnvironmentVariable('Path', $newPath, 'User')
-    Write-Host "Added $BinDir to your User PATH." -ForegroundColor DarkGray
-}
-
-# Always refresh the current PowerShell session too. This makes `grft`
-# available immediately when install.ps1 is executed in-process
-# (for example `irm ... | iex` or `.\\cli\\install.ps1` in PowerShell).
-if ($env:Path -notlike "*$BinDir*") {
-    $env:Path = "$BinDir;$env:Path"
-}
-
-Write-Host ""
-Write-Host "Graftcode CLI $Version installed." -ForegroundColor Green
-Write-Host "  Home: $GrftHome"
-Write-Host "  Bin:  $BinDir\grft.cmd"
-Write-Host ""
-Write-Host "In this PowerShell window you can run now:" -ForegroundColor Cyan
-Write-Host "  grft"
-Write-Host "  grft get gg"
-Write-Host "  grft get rules cursor"
-Write-Host "  grft get plugin rabbitmq"
-Write-Host ""
-Write-Host "Note: if you ran this from cmd.exe, that parent cmd window will still need a restart to pick up the new PATH." -ForegroundColor DarkGray
+Install-GrftToHome -GrftRawBase $GrftRawBase -GrftHome $GrftHome -SourceDir $SourceDir
+Show-UiDone

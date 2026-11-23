@@ -1,0 +1,46 @@
+{
+    "schemaVersion":  1,
+    "repo":  "grft-dev/graftcode-extensions",
+    "releaseTag":  "v1.2.0",
+    "syncedAt":  "2026-11-23T07:45:54Z",
+    "assetPattern":  "{id}-{os}-{arch}.tar.gz",
+    "plugins":  [
+                    {
+                        "id":  "kafka",
+                        "label":  "Kafka",
+                        "aliases":  [
+
+                                    ]
+                    },
+                    {
+                        "id":  "pubsub",
+                        "label":  "Google Pub/Sub",
+                        "aliases":  [
+
+                                    ]
+                    },
+                    {
+                        "id":  "rabbitmq",
+                        "label":  "RabbitMQ",
+                        "aliases":  [
+                                        "rabbit"
+                                    ]
+                    },
+                    {
+                        "id":  "servicebus",
+                        "label":  "Azure Service Bus",
+                        "aliases":  [
+                                        "service-bus",
+                                        "azure-servicebus",
+                                        "asb"
+                                    ]
+                    },
+                    {
+                        "id":  "sqs",
+                        "label":  "Amazon SQS",
+                        "aliases":  [
+
+                                    ]
+                    }
+                ]
+}
