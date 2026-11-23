@@ -8,7 +8,7 @@ if defined GRFT_HOME (
 )
 
 if not exist "%GET_PS1%" (
-  echo grft is not installed. Run: irm https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli/install.ps1 ^| iex
+  echo grft is not installed. Run: iwr https://grft.dev/get ^| iex
   exit /b 1
 )
 

@@ -1,197 +1,66 @@
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
-$Repo = 'grft-dev/graftcode-gateway'
-$ExeName = 'gg.exe'
-$InstallDir = $PWD.Path
-$OutputPath = Join-Path $InstallDir $ExeName
-
-function Show-GgIntro {
-  Clear-Host
-
-  Write-Host @"
-                       __ _                _      
-                      / _| |              | |     
-       __ _ _ __ __ _| |_| |_ ___ ___   __| | ___ 
-      / _` | '__/ _` |  _| __/ __/ _ \ / _` |/ _ \
-     | (_| | | | (_| | | | || (_| (_) | (_| |  __/
-      \__, |_|  \__,_|_|  \__\___\___/ \__,_|\___|
-       __/ |                                      
-      |___/   
-
-"@ -ForegroundColor Cyan
-
-  Write-Host "Graftcode Gateway installer" -ForegroundColor White
-  Write-Host ""
-  Write-Host "This script downloads and installs Graftcode Gateway (gg.exe)" -ForegroundColor White
-  Write-Host "in the current directory." -ForegroundColor White
-  Write-Host ""
+if (-not $GrftCliRawBase -and $env:GRFT_CLI_RAW_BASE) {
+    $GrftCliRawBase = $env:GRFT_CLI_RAW_BASE.TrimEnd('/')
 }
 
-function Download-FileWithSpinner {
-  param(
-    [string]$Url,
-    [string]$OutputPath,
-    [string]$Label
-  )
-
-  Write-Host "Downloading $Label..."
-
-  $Job = Start-Job {
-    param($Url, $OutputPath)
-    $ProgressPreference = 'SilentlyContinue'
-    Invoke-WebRequest $Url -OutFile $OutputPath
-  } -ArgumentList $Url, $OutputPath
-
-  $Spinner = '|', '/', '-', '\'
-  $Index = 0
-
-  while ($Job.State -eq 'Running') {
-    Write-Host -NoNewline "`rDownloading $Label $($Spinner[$Index++ % $Spinner.Count])"
-    Start-Sleep -Milliseconds 120
-  }
-
-  Receive-Job $Job | Out-Null
-  Remove-Job $Job
-
-  Write-Host "`rDownloaded $Label " -ForegroundColor Green
-}
-
-function ConvertTo-WindowsArchSuffix {
-  param([string]$Value)
-
-  if ([string]::IsNullOrWhiteSpace($Value)) {
-    return $null
-  }
-
-  $Normalized = $Value.Trim().ToLowerInvariant()
-  if ($Normalized -match 'arm') {
-    return 'arm64'
-  }
-
-  switch ($Normalized) {
-    { $_ -in 'arm64', 'aarch64' } { return 'arm64' }
-    { $_ -in 'amd64', 'x64', 'x86_64' } { return 'amd64' }
-    { $_ -in 'x86', 'i386', 'i686', 'win32' } { return 'x86' }
-    default { return $null }
-  }
-}
-
-function Get-NativeWindowsArchSuffix {
-  # Collect native OS signals first. Under x64 emulation on Windows ARM,
-  # PROCESSOR_ARCHITECTURE and sometimes OSArchitecture report x64/AMD64
-  # while Win32_OperatingSystem still reports an ARM CPU.
-  $NativeSignals = @()
-
-  if ($env:PROCESSOR_ARCHITEW6432) {
-    $NativeSignals += $env:PROCESSOR_ARCHITEW6432
-  }
-
-  try {
-    $NativeSignals += (Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction Stop).OSArchitecture
-  }
-  catch {}
-
-  try {
-    $NativeSignals += [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
-  }
-  catch {
-    try {
-      $NativeSignals += [System.Runtime.InteropServices.RuntimeInformation,mscorlib]::OSArchitecture.ToString()
+if (-not $GrftCliRawBase -and -not $PSScriptRoot) {
+$GrftRawLocatorPs1Url = 'https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli/grft-raw-locator.ps1'
+    $configUrl = (Invoke-WebRequest -UseBasicParsing -Uri $GrftRawLocatorPs1Url).Content.Trim()
+    $cfgBody = (Invoke-WebRequest -UseBasicParsing -Uri $configUrl).Content
+    if ($cfgBody -is [byte[]]) {
+        $cfgBody = [System.Text.Encoding]::UTF8.GetString($cfgBody)
     }
-    catch {}
-  }
-
-  $Resolved = @()
-  foreach ($Signal in $NativeSignals) {
-    $Suffix = ConvertTo-WindowsArchSuffix $Signal
-    if ($Suffix) {
-      $Resolved += $Suffix
+    . ([ScriptBlock]::Create([string]$cfgBody))
+    if ($GrftCliRawBase) {
+        $GrftCliRawBase = $GrftCliRawBase.TrimEnd('/')
     }
-  }
-
-  if ($Resolved -contains 'arm64') { return 'arm64' }
-  if ($Resolved -contains 'amd64') { return 'amd64' }
-  if ($Resolved -contains 'x86') { return 'x86' }
-
-  $ProcessArch = ConvertTo-WindowsArchSuffix $env:PROCESSOR_ARCHITECTURE
-  if ($ProcessArch) {
-    return $ProcessArch
-  }
-
-  throw "Unsupported Windows architecture. PROCESSOR_ARCHITECTURE=$($env:PROCESSOR_ARCHITECTURE); PROCESSOR_ARCHITEW6432=$($env:PROCESSOR_ARCHITEW6432)"
 }
 
-function Get-GgArchSuffix {
-  Get-NativeWindowsArchSuffix
+$pipeRawBase = if ($GrftCliRawBase) { $GrftCliRawBase.TrimEnd('/') } else { $null }
+$grftLib = if ($PSScriptRoot) { Join-Path $PSScriptRoot 'lib\grft-cli-raw.ps1' } else { $null }
+
+if ($pipeRawBase) {
+    $rawBody = (Invoke-WebRequest -Uri "$pipeRawBase/lib/grft-cli-raw.ps1" -UseBasicParsing).Content
+    if ($rawBody -is [byte[]]) {
+        $rawBody = [System.Text.Encoding]::UTF8.GetString($rawBody)
+    }
+    . ([ScriptBlock]::Create([string]$rawBody))
+}
+elseif ($grftLib -and (Test-Path -LiteralPath $grftLib)) {
+    . $grftLib
+}
+else {
+    throw 'Set $GrftCliRawBase or GRFT_CLI_RAW_BASE before pipe | iex, or run from checkout.'
 }
 
-function Install-Gg {
-  $OsName = 'windows'
-  $ArchSuffix = Get-GgArchSuffix
-  $AssetName = "gg_${OsName}_${ArchSuffix}.zip"
+Initialize-GrftCliRawContext
 
-  Write-Host ""
-  Write-Host "Detected OS: $OsName"
-  Write-Host "Detected architecture: $ArchSuffix"
-  Write-Host "Fetching latest release from $Repo..."
+$checkoutRoot = $PSScriptRoot
+$useCheckout = (-not $pipeRawBase) -and $checkoutRoot -and (Test-GrftPowerShellCliCheckout -CliRoot $checkoutRoot)
 
-  $Release = Invoke-RestMethod "https://api.github.com/repos/$Repo/releases/latest"
-
-  $Asset = $Release.assets |
-    Where-Object { $_.name -ieq $AssetName } |
-    Select-Object -First 1
-
-  if (-not $Asset) {
-    $Available = ($Release.assets |
-      Where-Object { $_.name -match '(?i)^gg_' } |
-      ForEach-Object { $_.name }) -join "`n - "
-    throw "Could not find Gateway build: $AssetName. Available gg assets:`n - $Available"
-  }
-
-  $TempDir = Join-Path $env:TEMP ("graftcode-gg-" + [Guid]::NewGuid().ToString())
-  New-Item -ItemType Directory -Path $TempDir -Force | Out-Null
-
-  try {
-    $ZipPath = Join-Path $TempDir $Asset.name
-    Download-FileWithSpinner -Url $Asset.browser_download_url -OutputPath $ZipPath -Label $Asset.name
-
-    Add-Type -AssemblyName System.IO.Compression.FileSystem
-
-    $Zip = [IO.Compression.ZipFile]::OpenRead($ZipPath)
-
-    try {
-      $Entry = $Zip.Entries |
-        Where-Object { $_.Name -ieq $ExeName } |
-        Select-Object -First 1
-
-      if (-not $Entry) {
-        throw "Could not find $ExeName inside $($Asset.name)"
-      }
-
-      if (Test-Path $OutputPath) {
-        Remove-Item $OutputPath -Force
-      }
-
-      [IO.Compression.ZipFileExtensions]::ExtractToFile($Entry, $OutputPath, $true)
+if ($useCheckout) {
+    $script:CliDir = $checkoutRoot
+    $script:CliRawBase = $script:GrftRawBase
+    . (Join-Path $checkoutRoot 'lib\ui.ps1')
+    . (Join-Path $checkoutRoot 'lib\gateway-installer.ps1')
+}
+else {
+    $script:GrftEphemeralRawBase = $script:GrftRawBase
+    $script:GrftEphemeralIncludePlugins = $false
+    $bootstrapPath = if ($checkoutRoot) { Join-Path $checkoutRoot 'lib\grft-ephemeral-bootstrap.ps1' } else { $null }
+    if ($bootstrapPath -and (Test-Path -LiteralPath $bootstrapPath)) {
+        . $bootstrapPath
     }
-    finally {
-      $Zip.Dispose()
+    else {
+        $bootBody = (Invoke-WebRequest -Uri "$($script:GrftRawBase)/lib/grft-ephemeral-bootstrap.ps1" -UseBasicParsing).Content
+        if ($bootBody -is [byte[]]) {
+            $bootBody = [System.Text.Encoding]::UTF8.GetString($bootBody)
+        }
+        . ([ScriptBlock]::Create([string]$bootBody))
     }
-
-    Write-Host ""
-    Write-Host "Installed Graftcode Gateway:" -ForegroundColor Green
-    Write-Host $OutputPath
-  }
-  finally {
-    if (Test-Path $TempDir) {
-      Remove-Item $TempDir -Recurse -Force
-    }
-  }
 }
 
-Show-GgIntro
-Install-Gg
-
-Write-Host ""
-Write-Host "Done." -ForegroundColor Green
+Install-GraftcodeGatewayToCwd
+Show-UiDone

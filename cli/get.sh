@@ -1,74 +1,186 @@
 #!/bin/sh
-# GRFT_VERSION=0.1.2
+# GRFT_VERSION=0.1.3
+if ! [ -t 0 ]; then
+  GRFT_PIPE_INVOCATION=1
+  export GRFT_PIPE_INVOCATION
+fi
 set -eu
 
-GRFT_VERSION="0.1.2"
-GRFT_RAW_BASE="https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli"
+GRFT_VERSION="0.1.3"
+if [ -n "${GRAFT_CLI_DIR:-}" ] && [ -f "$GRAFT_CLI_DIR/grft-raw-config.sh" ]; then
+  # shellcheck source=/dev/null
+  . "$GRAFT_CLI_DIR/grft-raw-config.sh"
+elif [ -f "$(dirname "$0")/grft-raw-config.sh" ]; then
+  # shellcheck source=./grft-raw-config.sh
+  . "$(dirname "$0")/grft-raw-config.sh"
+fi
+GRFT_RAW_BASE="${GRFT_RAW_BASE:-${GRFT_CLI_RAW_BASE:-https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli}}"
+CLI_RAW_BASE="${CLI_RAW_BASE:-$GRFT_RAW_BASE}"
+export GRFT_CLI_RAW_BASE="${GRFT_CLI_RAW_BASE:-$GRFT_RAW_BASE}"
 GRFT_HOME="${GRFT_HOME:-$HOME/.grft}"
 
 REPO="grft-dev/graftcode-gateway"
 EXE_NAME="gg"
 OUTPUT_PATH="$PWD/$EXE_NAME"
 
-RULES_RAW_BASE="https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/rules"
-RULE_LANGS="dotnet java kotlin php python ruby typescript-node-nextjs"
-
 say() {
-  if [ -w /dev/tty ]; then
-    echo "$@" > /dev/tty
-  else
-    echo "$@"
-  fi
+  echo "$@"
 }
 
 say_no_newline() {
-  if [ -w /dev/tty ]; then
-    printf "%s" "$1" > /dev/tty
-  else
-    printf "%s" "$1"
+  printf '%s' "$1"
+}
+
+grft_dev_tty_usable() {
+  if ! [ -e /dev/tty ]; then
+    return 1
   fi
+  ( exec 3</dev/tty ) 2>/dev/null
+}
+
+grft_is_interactive_tty() {
+  if [ -t 0 ] && [ -t 1 ]; then
+    return 0
+  fi
+  if [ -t 1 ] || [ -t 2 ]; then
+    return 0
+  fi
+  if ! [ -t 0 ] && grft_dev_tty_usable; then
+    return 0
+  fi
+  return 1
+}
+
+graft_cli_show_done() {
+  if command -v ui_show_done >/dev/null 2>&1; then
+    ui_show_done
+    return 0
+  fi
+  say ""
+  say "Done."
+}
+
+graft_cli_ensure_ui_lib() {
+  if [ -n "${GRAFT_UI_LIB_LOADED:-}" ]; then
+    return 0
+  fi
+  if command -v ui_show_gateway_logo >/dev/null 2>&1; then
+    GRAFT_UI_LIB_LOADED=1
+    return 0
+  fi
+  CLI_RAW_BASE="${CLI_RAW_BASE:-$GRFT_RAW_BASE}"
+  if ! command -v curl >/dev/null 2>&1; then
+    return 1
+  fi
+  ui_tmp="$(mktemp)"
+  curl -fsSL "$CLI_RAW_BASE/lib/ui.sh" -o "$ui_tmp" </dev/null || {
+    rm -f "$ui_tmp"
+    return 1
+  }
+  sh_local="$(mktemp)"
+  sed 's/\r$//' "$ui_tmp" > "$sh_local"
+  # shellcheck source=/dev/null
+  . "$sh_local"
+  rm -f "$ui_tmp" "$sh_local"
+  GRAFT_UI_LIB_LOADED=1
+}
+
+graft_cli_ensure_installer_copy() {
+  if command -v grft_print_installer_intro >/dev/null 2>&1; then
+    return 0
+  fi
+  case "$0" in
+    */*)
+      sd="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+      if [ -f "$sd/lib/installer-copy.sh" ]; then
+        sh_local="$(mktemp)"
+        sed 's/\r$//' "$sd/lib/installer-copy.sh" > "$sh_local"
+        # shellcheck source=/dev/null
+        . "$sh_local"
+        rm -f "$sh_local"
+        return 0
+      fi
+      ;;
+  esac
+  CLI_RAW_BASE="${CLI_RAW_BASE:-$GRFT_RAW_BASE}"
+  if ! command -v curl >/dev/null 2>&1; then
+    return 1
+  fi
+  ic_tmp="$(mktemp)"
+  curl -fsSL "$CLI_RAW_BASE/lib/installer-copy.sh" -o "$ic_tmp" </dev/null || {
+    rm -f "$ic_tmp"
+    return 1
+  }
+  sh_local="$(mktemp)"
+  sed 's/\r$//' "$ic_tmp" > "$sh_local"
+  # shellcheck source=/dev/null
+  . "$sh_local"
+  rm -f "$ic_tmp" "$sh_local"
+}
+
+grft_plugin_ids_from_raw_manifest() {
+  if ! command -v curl >/dev/null 2>&1; then
+    return 1
+  fi
+  curl -fsSL "$GRFT_RAW_BASE/plugins.manifest.json" </dev/null 2>/dev/null |
+    sed -n 's/.*"id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' |
+    tr '\n' ',' |
+    sed 's/,$//'
 }
 
 show_intro() {
-  clear 2>/dev/null || true
-
-  if [ -w /dev/tty ]; then
-    cat > /dev/tty <<'EOF'
-   _____            __ _                 _
-  / ____|          / _| |               | |
- | |  __ _ __ __ _| |_| |_ ___ ___   __| | ___
- | | |_ | '__/ _` |  _| __/ __/ _ \ / _` |/ _ \
- | |__| | | | (_| | | | || (_| (_) | (_| |  __/
-  \_____|_|  \__,_|_|  \__\___\___/ \__,_|\___|
-
-EOF
-  else
-    cat <<'EOF'
-   _____            __ _                 _
-  / ____|          / _| |               | |
- | |  __ _ __ __ _| |_| |_ ___ ___   __| | ___
- | | |_ | '__/ _` |  _| __/ __/ _ \ / _` |/ _ \
- | |__| | | | (_| | | | || (_| (_) | (_| |  __/
-  \_____|_|  \__,_|_|  \__\___\___/ \__,_|\___|
-
-EOF
+  if grft_is_interactive_tty; then
+    clear 2>/dev/null || true
   fi
 
-  say "Graftcode helps you generate AI code that integrates through Graftcode."
-  say "It can reduce boilerplate, simplify PRs, and save up to 80% of tokens."
-  say ""
-  say "This installer can:"
-  say "  1. Download Graftcode Rules file for your IDE"
-  say "     - so AI can generate code that integrates everything through Graftcode"
-  say "  2. Download Graftcode Gateway"
-  say "     - gateway for your processor"
-  say "  3. Download Graftcode Plugins"
-  say "     - RabbitMQ and Azure Service Bus plugins for the gateway"
+  if graft_cli_ensure_ui_lib && command -v ui_show_gateway_logo >/dev/null 2>&1; then
+    ui_show_gateway_logo
+    say ""
+  fi
+
+  graft_cli_ensure_installer_copy || true
+  plugin_manifest=""
+  script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+  if [ -n "${GRAFT_CLI_DIR:-}" ] && [ -f "$GRAFT_CLI_DIR/plugins.manifest.json" ]; then
+    plugin_manifest="$GRAFT_CLI_DIR/plugins.manifest.json"
+  elif [ -f "$script_dir/plugins.manifest.json" ]; then
+    plugin_manifest="$script_dir/plugins.manifest.json"
+  elif [ -f "$GRFT_HOME/plugins.manifest.json" ]; then
+    plugin_manifest="$GRFT_HOME/plugins.manifest.json"
+  fi
+  plugin_names=""
+  if [ -n "$plugin_manifest" ] && [ -f "$plugin_manifest" ]; then
+    plugin_names="$(sed -n 's/.*"id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$plugin_manifest" | tr '\n' ',' | sed 's/,$//')"
+  elif plugin_names="$(grft_plugin_ids_from_raw_manifest)" && [ -n "$plugin_names" ]; then
+    :
+  fi
+  uninst_hint=0
   if is_grft_home_present; then
-    say "  4. Uninstall Graftcode CLI"
-    say "     - remove ~/.grft and PATH entry"
+    uninst_hint=1
   fi
-  say ""
+  if command -v grft_print_installer_intro >/dev/null 2>&1; then
+    grft_print_installer_intro "$plugin_names" "$uninst_hint"
+  else
+    say "Graftcode helps you generate AI code that integrates through Graftcode."
+    say "It can reduce boilerplate, simplify PRs, and save up to 80% of tokens."
+    say ""
+    say "This installer can:"
+    say "  1. Download Graftcode Rules file for your IDE"
+    say "     - so AI can generate code that integrates everything through Graftcode"
+    say "  2. Download Graftcode Gateway"
+    say "     - gateway for your processor"
+    say "  3. Download Graftcode Plugins"
+    if [ -n "$plugin_names" ]; then
+      say "     - messaging plugins for the gateway ($plugin_names)"
+    else
+      say "     - messaging plugins for the gateway"
+    fi
+    if [ "$uninst_hint" = 1 ]; then
+      say "  4. Uninstall Graftcode CLI"
+      say "     - remove ~/.grft and PATH entry"
+    fi
+    say ""
+  fi
 }
 
 has_cmd() {
@@ -81,15 +193,19 @@ is_grft_home_present() {
 
 read_from_tty() {
   prompt="$1"
+  choice=""
 
-  if [ -r /dev/tty ]; then
-    say_no_newline "$prompt"
-    IFS= read -r choice < /dev/tty || choice=""
+  if grft_dev_tty_usable; then
+    printf '%s' "$prompt" >/dev/tty
+    exec 3</dev/tty
+    IFS= read -r choice <&3 || choice=""
+    exec 3<&-
   else
-    printf "%s" "$prompt"
+    printf '%s' "$prompt"
     IFS= read -r choice || choice=""
   fi
 
+  choice="$(printf '%s' "$choice" | tr -d '\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
   echo "$choice"
 }
 
@@ -119,7 +235,7 @@ download_file() {
   say "Downloading $label..."
 
   if has_cmd curl; then
-    curl -fL "$url" -o "$output"
+    curl -fL "$url" -o "$output" </dev/null
   elif has_cmd wget; then
     wget -O "$output" "$url"
   elif has_cmd busybox; then
@@ -132,95 +248,50 @@ download_file() {
   say "Downloaded $label"
 }
 
-download_rule_set() {
-  remote_dir="$1"
-  local_dir="$2"
-  ext="$3"
-  include_router="$4"
-
-  mkdir -p "$local_dir"
-
-  set_list="$RULE_LANGS"
-  if [ "$include_router" = "yes" ]; then
-    set_list="router $RULE_LANGS"
+graft_cli_load_rules_install_stack() {
+  if command -v install_rules_for_ide >/dev/null 2>&1; then
+    return 0
   fi
 
-  for name in $set_list; do
-    fname="graftcode-$name.$ext"
-    download_file "$remote_dir/$fname" "$local_dir/$fname" "$fname"
-  done
-}
+  CLI_RAW_BASE="${CLI_RAW_BASE:-$GRFT_RAW_BASE}"
 
-install_rules_for_ide() {
-  ide="$(echo "$1" | tr 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' 'abcdefghijklmnopqrstuvwxyz')"
+  if ! graft_cli_ensure_ui_lib; then
+    say "Error: could not load ui.sh from $CLI_RAW_BASE"
+    exit 1
+  fi
 
-  case "$ide" in
-    cursor|1)
-      target_dir="$PWD/.cursor/rules"
-      download_rule_set "$RULES_RAW_BASE/Cursor/.cursor/rules" "$target_dir" "mdc" "yes"
-      say ""
-      say "Installed Graftcode Cursor rules in:"
-      say "$target_dir"
-      ;;
-    claude|claude-code|2)
-      download_file "$RULES_RAW_BASE/Claude/CLAUDE.md" "$PWD/CLAUDE.md" "CLAUDE.md"
-      target_dir="$PWD/.claude/rules"
-      download_rule_set "$RULES_RAW_BASE/Claude/.claude/rules" "$target_dir" "md" "no"
-      say ""
-      say "Installed Graftcode Claude Code rules in:"
-      say "$PWD/CLAUDE.md"
-      say "$target_dir"
-      ;;
-    copilot|github-copilot|github|3)
-      mkdir -p "$PWD/.github"
-      download_file "$RULES_RAW_BASE/Copilot/.github/copilot-instructions.md" "$PWD/.github/copilot-instructions.md" "copilot-instructions.md"
-      target_dir="$PWD/.github/instructions"
-      download_rule_set "$RULES_RAW_BASE/Copilot/.github/instructions" "$target_dir" "instructions.md" "no"
-      say ""
-      say "Installed Graftcode GitHub Copilot rules in:"
-      say "$PWD/.github/copilot-instructions.md"
-      say "$target_dir"
-      ;;
-    cline|4)
-      target_dir="$PWD/.clinerules"
-      download_rule_set "$RULES_RAW_BASE/Cline/.clinerules" "$target_dir" "md" "yes"
-      say ""
-      say "Installed Graftcode Cline rules in:"
-      say "$target_dir"
-      ;;
-    windsurf|5)
-      target_dir="$PWD/.windsurf/rules"
-      download_rule_set "$RULES_RAW_BASE/Windsurf/.windsurf/rules" "$target_dir" "md" "yes"
-      say ""
-      say "Installed Graftcode Windsurf rules in:"
-      say "$target_dir"
-      ;;
-    continue|6)
-      target_dir="$PWD/.continue/rules"
-      download_rule_set "$RULES_RAW_BASE/Continue/.continue/rules" "$target_dir" "md" "yes"
-      say ""
-      say "Installed Graftcode Continue rules in:"
-      say "$target_dir"
-      ;;
-    aider|7)
-      download_file "$RULES_RAW_BASE/Aider/CONVENTIONS.md" "$PWD/CONVENTIONS.md" "CONVENTIONS.md"
-      download_file "$RULES_RAW_BASE/Aider/.aider.conf.yml" "$PWD/.aider.conf.yml" ".aider.conf.yml"
-      say ""
-      say "Installed Graftcode Aider rules in:"
-      say "$PWD/CONVENTIONS.md"
-      say "$PWD/.aider.conf.yml"
-      ;;
-    *)
-      say "Unknown IDE '$1'. Use: cursor, claude, copilot, cline, windsurf, continue, aider"
-      exit 1
-      ;;
-  esac
+  if [ -n "${GRAFT_CLI_DIR:-}" ] && [ -f "$GRAFT_CLI_DIR/lib/rules-installer.sh" ]; then
+    graft_cli_source_sh_file "$GRAFT_CLI_DIR/lib/rules-installer.sh"
+    return 0
+  fi
+
+  if graft_cli_is_ephemeral_pipe_invocation && has_cmd curl; then
+    export GRAFT_CLI_EPHEMERAL=1
+    graft_cli_source_lib_from_url "lib/rules-installer.sh"
+    return 0
+  fi
+
+  if has_cmd curl; then
+    graft_cli_source_lib_from_url "lib/rules-installer.sh"
+    return 0
+  fi
+
+  say "Error: rules-installer.sh missing."
+  exit 1
 }
 
 install_rules() {
+  graft_cli_load_rules_install_stack
+
   if [ "$#" -ge 1 ] && [ -n "$1" ]; then
     install_rules_for_ide "$1"
     return 0
+  fi
+
+  if ! grft_is_interactive_tty; then
+    say "No interactive terminal — specify an IDE, e.g.: grft get rules cursor"
+    show_help
+    exit 2
   fi
 
   say ""
@@ -238,320 +309,195 @@ install_rules() {
   install_rules_for_ide "$ide_choice"
 }
 
-detect_os_pattern() {
-  os_name="$(uname -s | tr 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' 'abcdefghijklmnopqrstuvwxyz')"
+graft_cli_source_sh_file() {
+  sh_path="$1"
+  sh_local="$(mktemp)"
+  sed 's/\r$//' "$sh_path" > "$sh_local"
+  # shellcheck source=/dev/null
+  . "$sh_local"
+  rm -f "$sh_local"
+}
 
-  case "$os_name" in
-    linux)
-      echo "linux"
-      ;;
-    darwin)
-      echo "darwin|macos|osx"
-      ;;
-    mingw*|msys*|cygwin*|windows*|win*)
-      echo "windows|win"
-      ;;
-    *)
-      say "Unsupported OS: $os_name"
-      exit 1
-      ;;
+graft_cli_is_ephemeral_pipe_invocation() {
+  if [ "${GRFT_PIPE_INVOCATION:-}" = "1" ]; then
+    return 0
+  fi
+  case "${0:-}" in
+    '' | - | sh | bash) return 0 ;;
+    *) return 1 ;;
   esac
 }
 
-detect_arch_pattern() {
-  arch_name="$(uname -m | tr 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' 'abcdefghijklmnopqrstuvwxyz')"
-
-  case "$arch_name" in
-    arm64|aarch64)
-      echo "arm64|aarch64"
-      ;;
-    x86_64|amd64)
-      echo "x64|amd64|x86_64"
-      ;;
-    i386|i686|x86)
-      echo "x86|i386|i686"
-      ;;
-    *)
-      say "Unsupported architecture: $arch_name"
-      exit 1
-      ;;
-  esac
+graft_cli_source_lib_from_url() {
+  lib_rel="$1"
+  CLI_RAW_BASE="${CLI_RAW_BASE:-$GRFT_RAW_BASE}"
+  if ! has_cmd curl; then
+    say "Error: curl is required to load $lib_rel from $CLI_RAW_BASE."
+    exit 1
+  fi
+  lib_tmp="$(mktemp)"
+  curl -fsSL "$CLI_RAW_BASE/$lib_rel" -o "$lib_tmp" </dev/null || {
+    rm -f "$lib_tmp"
+    say "Error: failed to load $lib_rel from $CLI_RAW_BASE."
+    exit 1
+  }
+  graft_cli_source_sh_file "$lib_tmp"
+  rm -f "$lib_tmp"
 }
 
-extract_gateway() {
-  archive_path="$1"
-  extract_dir="$2"
+graft_cli_ensure_gateway_installer_libs() {
+  if [ -n "${GRAFT_GATEWAY_INSTALLER_LOADED:-}" ]; then
+    return 0
+  fi
 
-  mkdir -p "$extract_dir"
+  CLI_RAW_BASE="${CLI_RAW_BASE:-$GRFT_RAW_BASE}"
 
-  case "$archive_path" in
-    *.zip)
-      if has_cmd unzip; then
-        unzip -q "$archive_path" -d "$extract_dir"
-      elif has_cmd tar; then
-        tar -xf "$archive_path" -C "$extract_dir"
-      else
-        say "Error: unzip or tar is required to extract .zip files."
-        exit 1
-      fi
-      ;;
-    *.tar.gz|*.tgz)
-      if has_cmd tar; then
-        tar -xzf "$archive_path" -C "$extract_dir"
-      else
-        say "Error: tar is required to extract tar.gz files."
-        exit 1
-      fi
-      ;;
-    *)
-      say "Unsupported archive format: $archive_path"
-      exit 1
-      ;;
-  esac
+  if command -v install_gg_to_cwd >/dev/null 2>&1; then
+    GRAFT_GATEWAY_INSTALLER_LOADED=1
+    return 0
+  fi
 
-  found="$(find "$extract_dir" -type f -name "$EXE_NAME" -print | head -n 1 || true)"
+  if [ -n "${GRAFT_CLI_DIR:-}" ] && [ -f "$GRAFT_CLI_DIR/lib/gateway-installer.sh" ]; then
+    graft_cli_source_sh_file "$GRAFT_CLI_DIR/lib/ui.sh"
+    graft_cli_source_sh_file "$GRAFT_CLI_DIR/lib/gateway-installer.sh"
+    GRAFT_GATEWAY_INSTALLER_LOADED=1
+    return 0
+  fi
 
-  if [ -z "$found" ]; then
-    say "Could not find $EXE_NAME inside archive."
-    say "Extracted files:"
-    find "$extract_dir" -maxdepth 4 -type f | sed 's/^/ - /' > /dev/tty 2>/dev/null || true
+  if graft_cli_is_ephemeral_pipe_invocation && has_cmd curl; then
+    if ! command -v ui_show_gateway_intro >/dev/null 2>&1; then
+      graft_cli_source_lib_from_url "lib/ui.sh"
+    fi
+    graft_cli_source_lib_from_url "lib/gateway-installer.sh"
+    GRAFT_GATEWAY_INSTALLER_LOADED=1
+    return 0
+  fi
+
+  script_dir=""
+  if [ -n "${GRAFT_CLI_DIR:-}" ] && [ -d "$GRAFT_CLI_DIR" ]; then
+    script_dir="$GRAFT_CLI_DIR"
+  else
+    script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+  fi
+
+  if [ -f "$script_dir/lib/grft-cli-layout-bootstrap.sh" ]; then
+    graft_cli_source_sh_file "$script_dir/lib/grft-cli-layout-bootstrap.sh"
+    graft_cli_bootstrap_layout "$script_dir" || exit 1
+  elif has_cmd curl; then
+    ensure_tmp="$(mktemp)"
+    curl -fsSL "$CLI_RAW_BASE/ensure-sh-cli-layout.sh" -o "$ensure_tmp" </dev/null
+    # shellcheck source=/dev/null
+    . "$ensure_tmp"
+    rm -f "$ensure_tmp"
+    graft_cli_load_and_initialize_layout || exit 1
+  else
+    say "Error: curl is required to load gateway installer libraries."
     exit 1
   fi
 
-  rm -f "$OUTPUT_PATH"
-  cp "$found" "$OUTPUT_PATH"
-  chmod +x "$OUTPUT_PATH"
+  if [ -n "${GRAFT_CLI_DIR:-}" ] && [ -f "$GRAFT_CLI_DIR/lib/ui.sh" ]; then
+    graft_cli_source_sh_file "$GRAFT_CLI_DIR/lib/ui.sh"
+    graft_cli_source_sh_file "$GRAFT_CLI_DIR/lib/gateway-installer.sh"
+  else
+    say "Error: CLI layout not initialized."
+    exit 1
+  fi
+
+  GRAFT_GATEWAY_INSTALLER_LOADED=1
+}
+
+graft_cli_load_plugin_install_stack() {
+  if command -v graft_plugin_resolve_id >/dev/null 2>&1; then
+    return 0
+  fi
+
+  graft_cli_ensure_gateway_installer_libs
+  CLI_RAW_BASE="${CLI_RAW_BASE:-$GRFT_RAW_BASE}"
+
+  if [ -n "${GRAFT_CLI_DIR:-}" ] && [ -f "$GRAFT_CLI_DIR/lib/plugin-manifest.sh" ]; then
+    graft_cli_source_sh_file "$GRAFT_CLI_DIR/lib/plugin-manifest.sh"
+    if [ -f "$GRAFT_CLI_DIR/lib/plugin-installer.sh" ]; then
+      graft_cli_source_sh_file "$GRAFT_CLI_DIR/lib/plugin-installer.sh"
+    fi
+    graft_cli_ensure_plugin_manifest_file
+    return 0
+  fi
+
+  if graft_cli_is_ephemeral_pipe_invocation && has_cmd curl; then
+    export GRAFT_CLI_EPHEMERAL=1
+    graft_cli_source_lib_from_url "lib/plugin-manifest.sh"
+    graft_cli_source_lib_from_url "lib/plugin-installer.sh"
+    graft_cli_ensure_plugin_manifest_file
+    return 0
+  fi
+
+  if has_cmd curl; then
+    ensure_tmp="$(mktemp)"
+    curl -fsSL "$CLI_RAW_BASE/ensure-sh-cli-layout.sh" -o "$ensure_tmp" </dev/null
+    # shellcheck source=/dev/null
+    . "$ensure_tmp"
+    rm -f "$ensure_tmp"
+    graft_cli_load_and_initialize_layout || exit 1
+  fi
+
+  if [ -n "${GRAFT_CLI_DIR:-}" ] && [ -f "$GRAFT_CLI_DIR/lib/plugin-manifest.sh" ]; then
+    graft_cli_source_sh_file "$GRAFT_CLI_DIR/lib/plugin-manifest.sh"
+    graft_cli_source_sh_file "$GRAFT_CLI_DIR/lib/plugin-installer.sh"
+    graft_cli_ensure_plugin_manifest_file
+    return 0
+  fi
+
+  say "Error: plugin-manifest.sh missing after layout ensure."
+  exit 1
 }
 
 install_gateway() {
-  if ! has_cmd grep || ! has_cmd sed || ! has_cmd find || ! has_cmd basename || ! has_cmd mktemp; then
-    say "Error: this installer requires grep, sed, find, basename and mktemp."
-    exit 1
-  fi
-
-  os_pattern="$(detect_os_pattern)"
-  arch_pattern="$(detect_arch_pattern)"
-
-  case "$os_pattern" in
-    *windows*)
-      EXE_NAME="gg.exe"
-      OUTPUT_PATH="$PWD/$EXE_NAME"
-      ;;
-  esac
-
-  say ""
-  say "Detected OS pattern: $os_pattern"
-  say "Detected architecture pattern: $arch_pattern"
-  say "Fetching latest release from $REPO..."
-
-  release_json="$(mktemp)"
-  download_file "https://api.github.com/repos/$REPO/releases/latest" "$release_json" "latest release metadata"
-
-  asset_url="$(
-    grep '"browser_download_url"' "$release_json" |
-      sed 's/.*"browser_download_url": "\(.*\)".*/\1/' |
-      grep -Ei '\.(zip|tar\.gz|tgz)$' |
-      grep -Ei "$os_pattern" |
-      grep -Ei "$arch_pattern" |
-      grep -Eiv '(sha256|checksum|checksums|signature|sig)' |
-      head -n 1 || true
-  )"
-
-  if [ -z "$asset_url" ]; then
-    say "Could not find Gateway build for this machine."
-    say ""
-    say "Available downloadable assets:"
-    grep '"browser_download_url"' "$release_json" |
-      sed 's/.*"browser_download_url": "\(.*\)".*/ - \1/' > /dev/tty 2>/dev/null || true
-    rm -f "$release_json"
-    exit 1
-  fi
-
-  asset_name="$(basename "$asset_url")"
-
-  tmp_dir="$(mktemp -d)"
-  archive_path="$tmp_dir/$asset_name"
-  extract_dir="$tmp_dir/extract"
-
-  download_file "$asset_url" "$archive_path" "$asset_name"
-  extract_gateway "$archive_path" "$extract_dir"
-
-  rm -rf "$tmp_dir"
-  rm -f "$release_json"
-
-  say ""
-  say "Installed Graftcode Gateway:"
-  say "$OUTPUT_PATH"
-}
-
-detect_plugin_os() {
-  os_name="$(uname -s | tr 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' 'abcdefghijklmnopqrstuvwxyz')"
-
-  case "$os_name" in
-    linux)
-      echo "linux"
-      ;;
-    darwin)
-      echo "macos"
-      ;;
-    mingw*|msys*|cygwin*|windows*|win*)
-      echo "windows"
-      ;;
-    *)
-      say "Unsupported OS: $os_name"
-      exit 1
-      ;;
-  esac
-}
-
-detect_plugin_arch() {
-  arch_name="$(uname -m | tr 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' 'abcdefghijklmnopqrstuvwxyz')"
-
-  case "$arch_name" in
-    arm64|aarch64)
-      echo "arm64"
-      ;;
-    x86_64|amd64)
-      echo "x86_64"
-      ;;
-    *)
-      say "Unsupported architecture: $arch_name"
-      exit 1
-      ;;
-  esac
-}
-
-install_plugin_files() {
-  extract_dir="$1"
-  install_dir="$2"
-  plugin_label="$3"
-  shift 3
-
-  mkdir -p "$install_dir"
-  installed=""
-
-  if [ -d "$extract_dir/Release" ]; then
-    for file in "$extract_dir"/Release/*.dll; do
-      [ -e "$file" ] || continue
-      cp "$file" "$install_dir/"
-      installed="$installed
- - $(basename "$file")"
-    done
-  fi
-
-  for pattern in "$@"; do
-    found="$(find "$extract_dir" -maxdepth 2 -type f -name "$pattern" -print | head -n 1 || true)"
-    if [ -n "$found" ]; then
-      cp "$found" "$install_dir/"
-      installed="$installed
- - $(basename "$found")"
-    fi
-  done
-
-  if [ -z "$installed" ]; then
-    say "Could not find $plugin_label plugin binaries inside archive."
-    say "Extracted files:"
-    find "$extract_dir" -maxdepth 4 -type f | sed 's/^/ - /' > /dev/tty 2>/dev/null || true
-    exit 1
-  fi
-
-  say "$installed"
-}
-
-install_plugin() {
-  plugin_name="$1"
-  plugin_label="$2"
-  shift 2
-
-  if ! has_cmd tar || ! has_cmd find || ! has_cmd basename || ! has_cmd mktemp || ! has_cmd grep || ! has_cmd sed; then
-    say "Error: this installer requires tar, find, basename, mktemp, grep and sed."
-    exit 1
-  fi
-
-  plugins_repo="grft-dev/graftcode-plugins"
-  install_dir="$PWD"
-  os_name="$(detect_plugin_os)"
-  arch_name="$(detect_plugin_arch)"
-  asset_name="${plugin_name}-${os_name}-${arch_name}.tar.gz"
-
-  say ""
-  say "Detected OS: $os_name"
-  say "Detected architecture: $arch_name"
-  say "Fetching latest release from $plugins_repo..."
-
-  release_json="$(mktemp)"
-  download_file "https://api.github.com/repos/$plugins_repo/releases/latest" "$release_json" "latest release metadata"
-
-  asset_url="$(
-    grep '"browser_download_url"' "$release_json" |
-      sed 's/.*"browser_download_url": "\(.*\)".*/\1/' |
-      grep -Ei "/${asset_name}$" |
-      head -n 1 || true
-  )"
-
-  if [ -z "$asset_url" ]; then
-    say "Could not find $plugin_label build: $asset_name"
-    say ""
-    say "Available ${plugin_name} assets:"
-    grep '"browser_download_url"' "$release_json" |
-      sed 's/.*"browser_download_url": "\(.*\)".*/\1/' |
-      grep -Ei "/${plugin_name}-" |
-      sed 's/^/ - /' > /dev/tty 2>/dev/null || true
-    rm -f "$release_json"
-    exit 1
-  fi
-
-  tmp_dir="$(mktemp -d)"
-  archive_path="$tmp_dir/$asset_name"
-  extract_dir="$tmp_dir/extract"
-
-  download_file "$asset_url" "$archive_path" "$asset_name"
-  mkdir -p "$extract_dir"
-  tar -xzf "$archive_path" -C "$extract_dir"
-
-  say ""
-  say "Installing plugin files to:"
-  say "$install_dir"
-  say ""
-  install_plugin_files "$extract_dir" "$install_dir" "$plugin_label" "$@"
-
-  rm -rf "$tmp_dir"
-  rm -f "$release_json"
-
-  say ""
-  say "Installed Graftcode $plugin_label plugin in:"
-  say "$install_dir"
+  say "Preparing Graftcode Gateway download..."
+  graft_cli_ensure_gateway_installer_libs
+  install_gg_to_cwd
 }
 
 install_plugins() {
+  graft_cli_load_plugin_install_stack
+
+  manifest="$(graft_plugin_manifest_path)"
+  if [ ! -f "$manifest" ]; then
+    say "Error: missing plugins.manifest.json"
+    exit 1
+  fi
+
   plugin=""
   if [ "$#" -ge 1 ]; then
     plugin="$(echo "$1" | tr 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' 'abcdefghijklmnopqrstuvwxyz')"
   fi
 
   if [ -z "$plugin" ]; then
+    if ! grft_is_interactive_tty; then
+      say "No interactive terminal — specify a plugin, e.g.: grft get plugin rabbitmq"
+      say "Available: $(graft_plugin_help_names "$manifest")"
+      show_help
+      exit 2
+    fi
     say ""
     say "Choose plugin:"
-    say "  1. RabbitMQ"
-    say "  2. Azure Service Bus"
+    graft_plugin_print_menu "$manifest"
     say ""
-    plugin="$(read_choice_set "1 2" "1/2")"
+    menu_choices="$(graft_plugin_menu_choices "$manifest")"
+    choice_hint="$(echo "$menu_choices" | sed 's/ /,/g')"
+    plugin="$(read_choice_set "$menu_choices" "$choice_hint")"
   fi
 
-  case "$plugin" in
-    rabbitmq|rabbit|1)
-      install_plugin "rabbitmq" "RabbitMQ" \
-        libRabbitmqPlugin.so libRabbitmqPlugin.dylib RabbitmqPlugin.dll
-      ;;
-    servicebus|service-bus|azure-servicebus|asb|2)
-      install_plugin "servicebus" "Service Bus" \
-        libServiceBusPlugin.so libServiceBusPlugin.dylib ServiceBusPlugin.dll
-      ;;
-    *)
-      say "Unknown plugin '$1'. Use: rabbitmq, servicebus"
-      exit 1
-      ;;
-  esac
+  resolved="$(graft_plugin_resolve_id "$manifest" "$plugin")" || {
+    say "Unknown plugin '$1'. Available: $(graft_plugin_help_names "$manifest")"
+    exit 1
+  }
+
+  label="$(graft_plugin_label_for_id "$manifest" "$resolved")"
+  if [ -z "$label" ]; then
+    label="$resolved"
+  fi
+
+  install_plugin "$resolved" "$label"
 }
 
 script_dir() {
@@ -626,7 +572,7 @@ show_help() {
   say "  grft get                      Interactive installer"
   say "  grft get gg                   Download Graftcode Gateway"
   say "  grft get rules <ide>          Install AI rules (cursor, claude, copilot, ...)"
-  say "  grft get plugin <name>        Install plugin (rabbitmq, servicebus)"
+  say "  grft get plugin <name>        Install gateway plugin (plugins.manifest.json)"
   say "  grft uninstall                Remove ~/.grft and PATH entry"
   say "  grft version                  Show CLI version"
   say ""
@@ -704,19 +650,34 @@ uninstall_grft() {
 }
 
 run_interactive() {
+  if ! grft_is_interactive_tty; then
+    say "No interactive terminal — use non-interactive commands:"
+    show_help
+    exit 2
+  fi
+
   show_intro
 
-  say "What do you want to do?"
-  say "  1. Graftcode Rules file"
-  say "  2. Graftcode Gateway"
-  say "  3. Graftcode Plugins"
-
+  uninst_menu=0
   if is_grft_home_present; then
-    say "  4. Uninstall Graftcode CLI"
+    uninst_menu=1
+  fi
+  if command -v grft_print_installer_menu >/dev/null 2>&1; then
+    grft_print_installer_menu "$uninst_menu"
+  else
+    say "What do you want to do?"
+    say "  1. Graftcode Rules file"
+    say "  2. Graftcode Gateway"
+    say "  3. Graftcode Plugins"
+    if [ "$uninst_menu" = 1 ]; then
+      say "  4. Uninstall Graftcode CLI"
+    fi
     say ""
+  fi
+
+  if [ "$uninst_menu" = 1 ]; then
     choice="$(read_choice_set "1 2 3 4" "1/2/3/4")"
   else
-    say ""
     choice="$(read_choice_set "1 2 3" "1/2/3")"
   fi
 
@@ -730,8 +691,7 @@ run_interactive() {
       ;;
   esac
 
-  say ""
-  say "Done."
+  graft_cli_show_done
 }
 
 run_command() {
@@ -796,8 +756,7 @@ run_command() {
       ;;
   esac
 
-  say ""
-  say "Done."
+  graft_cli_show_done
 }
 
 maybe_self_update "$@"
