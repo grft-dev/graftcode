@@ -9,7 +9,13 @@ Installs into `~/.grft` (user-level, no admin) and adds `grft` to your PATH.
 ### Windows (PowerShell)
 
 ```powershell
-iwr https://d.grft.dev/get | iex
+iwr https://d.grft.dev/install -UseBasicParsing | iex
+```
+
+Interactive get menu (same as `get.ps1`):
+
+```powershell
+iwr https://d.grft.dev/get -UseBasicParsing | iex
 ```
 
 Or raw on `develop`:
@@ -27,6 +33,12 @@ Or from a local checkout:
 ```
 
 ### Linux / macOS
+
+```bash
+curl -fsSL https://d.grft.dev/install | sh
+```
+
+Interactive get menu:
 
 ```bash
 curl -fsSL https://d.grft.dev/get | sh
@@ -88,7 +100,13 @@ curl -fsSL https://d.grft.dev/get | sh
 ### Windows (PowerShell)
 
 ```powershell
-iwr https://d.grft.dev/get | iex
+iwr https://d.grft.dev/install -UseBasicParsing | iex
+```
+
+Interactive get menu (same as `get.ps1`):
+
+```powershell
+iwr https://d.grft.dev/get -UseBasicParsing | iex
 ```
 
 ## Layout after install

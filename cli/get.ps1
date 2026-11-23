@@ -2,6 +2,8 @@
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
+[Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+
 $GrftVersion = '0.1.3'
 $grftLib = if ($PSScriptRoot) { Join-Path $PSScriptRoot 'lib\grft-cli-raw.ps1' } else { $null }
 if ($grftLib -and (Test-Path -LiteralPath $grftLib)) {
@@ -20,8 +22,20 @@ else {
     if (-not $GrftCliRawBase -and $script:GrftCliRawBase) {
         $GrftCliRawBase = $script:GrftCliRawBase
     }
+    if (-not $GrftCliRawBase -and -not $PSScriptRoot) {
+        $GrftRawLocatorPs1Url = 'https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/develop/cli/grft-raw-locator.ps1'
+        $configUrl = (Invoke-WebRequest -UseBasicParsing -Uri $GrftRawLocatorPs1Url).Content.Trim()
+        $cfgBody = (Invoke-WebRequest -UseBasicParsing -Uri $configUrl).Content
+        if ($cfgBody -is [byte[]]) {
+            $cfgBody = [System.Text.Encoding]::UTF8.GetString($cfgBody)
+        }
+        . ([ScriptBlock]::Create([string]$cfgBody))
+        if ($GrftCliRawBase) {
+            $GrftCliRawBase = $GrftCliRawBase.TrimEnd('/')
+        }
+    }
     if (-not $GrftCliRawBase) {
-        throw 'Set $GrftCliRawBase or GRFT_CLI_RAW_BASE (rules/plugin stub or grft-raw-config) before pipe | iex, or run from checkout.'
+        $GrftCliRawBase = 'https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/develop/cli'
     }
     $tmp = Join-Path $env:TEMP 'grft-cli-raw.ps1'
     Invoke-WebRequest -Uri "$($GrftCliRawBase.TrimEnd('/'))/lib/grft-cli-raw.ps1" -OutFile $tmp -UseBasicParsing

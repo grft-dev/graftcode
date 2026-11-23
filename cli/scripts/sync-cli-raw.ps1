@@ -172,6 +172,7 @@ function Update-GrftInvokeLocatorUrls {
         @{ Path = (Join-Path $CliRoot 'plugin\invoke.sh'); Ps = $false },
         @{ Path = (Join-Path $CliRoot 'gg.ps1'); Ps = $true },
         @{ Path = (Join-Path $CliRoot 'install.ps1'); Ps = $true },
+        @{ Path = (Join-Path $CliRoot 'get.ps1'); Ps = $true },
         @{ Path = (Join-Path $CliRoot 'gg.sh'); Ps = $false },
         @{ Path = (Join-Path $CliRoot 'install.sh'); Ps = $false }
     )
