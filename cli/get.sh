@@ -14,7 +14,7 @@ elif [ -f "$(dirname "$0")/grft-raw-config.sh" ]; then
   # shellcheck source=./grft-raw-config.sh
   . "$(dirname "$0")/grft-raw-config.sh"
 fi
-GRFT_RAW_BASE="${GRFT_RAW_BASE:-${GRFT_CLI_RAW_BASE:-https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli}}"
+GRFT_RAW_BASE="${GRFT_RAW_BASE:-${GRFT_CLI_RAW_BASE:-https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/develop/cli}}"
 CLI_RAW_BASE="${CLI_RAW_BASE:-$GRFT_RAW_BASE}"
 export GRFT_CLI_RAW_BASE="${GRFT_CLI_RAW_BASE:-$GRFT_RAW_BASE}"
 GRFT_HOME="${GRFT_HOME:-$HOME/.grft}"

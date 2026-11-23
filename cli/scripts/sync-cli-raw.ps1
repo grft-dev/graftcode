@@ -183,7 +183,7 @@ function Update-GrftInvokeLocatorUrls {
                 $text = $text.Replace('__GRFT_RAW_LOCATOR_PS1_URL__', $locatorPsUrl)
             }
             else {
-                $text = [regex]::Replace($text, '(?m)^\$GrftRawLocatorPs1Url = ''[^'']*''', "`$GrftRawLocatorPs1Url = '$locatorPsUrl'")
+                $text = [regex]::Replace($text, '(?m)^\s*\$GrftRawLocatorPs1Url = ''[^'']*''', "`$GrftRawLocatorPs1Url = '$locatorPsUrl'")
             }
         }
         else {
@@ -191,7 +191,7 @@ function Update-GrftInvokeLocatorUrls {
                 $text = $text.Replace('__GRFT_RAW_LOCATOR_SH_URL__', $locatorShUrl)
             }
             else {
-                $text = [regex]::Replace($text, '(?m)^GRFT_RAW_LOCATOR_SH_URL=''[^'']*''', "GRFT_RAW_LOCATOR_SH_URL='$locatorShUrl'")
+                $text = [regex]::Replace($text, '(?m)^\s*GRFT_RAW_LOCATOR_SH_URL=''[^'']*''', "GRFT_RAW_LOCATOR_SH_URL='$locatorShUrl'")
             }
         }
         [System.IO.File]::WriteAllText($t.Path, $text, $Utf8NoBom)

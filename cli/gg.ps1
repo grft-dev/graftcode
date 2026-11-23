@@ -6,7 +6,7 @@ if (-not $GrftCliRawBase -and $env:GRFT_CLI_RAW_BASE) {
 }
 
 if (-not $GrftCliRawBase -and -not $PSScriptRoot) {
-    $GrftRawLocatorPs1Url = 'https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/feature/5272-grft-cli-installer-dx/cli/grft-raw-locator.ps1'
+$GrftRawLocatorPs1Url = 'https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/develop/cli/grft-raw-locator.ps1'
     $configUrl = (Invoke-WebRequest -UseBasicParsing -Uri $GrftRawLocatorPs1Url).Content.Trim()
     $cfgBody = (Invoke-WebRequest -UseBasicParsing -Uri $configUrl).Content
     if ($cfgBody -is [byte[]]) {

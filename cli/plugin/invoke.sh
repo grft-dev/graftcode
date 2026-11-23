@@ -5,8 +5,7 @@ if [ -z "${GRAFT_DEEP_LINK_PLUGIN_ID:-}" ]; then
   echo "Error: set GRAFT_DEEP_LINK_PLUGIN_ID in the plugin stub before running invoke.sh" >&2
   exit 1
 fi
-
-GRFT_RAW_LOCATOR_SH_URL='https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/feature/5272-grft-cli-installer-dx/cli/grft-raw-locator.sh'
+GRFT_RAW_LOCATOR_SH_URL='https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/develop/cli/grft-raw-locator.sh'
 export GRFT_RAW_LOCATOR_SH_URL
 if [ -z "${GRFT_CLI_RAW_BASE:-}" ]; then
   import_helper=""

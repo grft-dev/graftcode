@@ -5,7 +5,7 @@ if (-not $script:CliRawBase) {
     $script:CliRawBase = $script:GrftRawBase
   }
   else {
-    $script:CliRawBase = 'https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/main/cli'
+    $script:CliRawBase = 'https://raw.githubusercontent.com/grft-dev/graftcode/refs/heads/develop/cli'
   }
 }
 
